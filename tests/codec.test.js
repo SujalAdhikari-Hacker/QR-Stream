@@ -245,5 +245,163 @@ function sameBytes(a, b) {
     assert.strictEqual(tx.nextRound(), 2, 'picks the next unfinished round');
   });
 
+  // ── SHA-256 & HMAC-SHA256 ──────────────────────────────────────────────
+  ok('sha256 & hmacSha256 match Node crypto across lengths', () => {
+    const nodeCrypto = require('crypto');
+    for (const len of [0, 1, 55, 64, 128, 512]) {
+      const msg = rnd(len, 900 + len);
+      const key = rnd(32, 700 + len);
+      const h1 = Buffer.from(Q.sha256(msg));
+      const h2 = nodeCrypto.createHash('sha256').update(msg).digest();
+      assert.ok(h1.equals(h2), 'sha256 mismatch at len=' + len);
+      const m1 = Buffer.from(Q.hmacSha256(key, msg));
+      const m2 = nodeCrypto.createHmac('sha256', key).update(msg).digest();
+      assert.ok(m1.equals(m2), 'hmac mismatch at len=' + len);
+    }
+  });
+
+  // ── encrypted metadata privacy ─────────────────────────────────────────
+  {
+    const secretName = 'top_secret_private_key.pem';
+    const secretMime = 'application/x-pem-file';
+    const payload = rnd(10000, 555);
+    const tx = new Q.Transmission(payload, { password: 'strong-passphrase', name: secretName, mime: secretMime });
+    await tx.init();
+    const wireFile = tx.fileFrame();
+    const wireStr = Buffer.from(wireFile).toString('utf8');
+    ok('encrypted file manifest hides filename, mime, and plaintext CRC', () => {
+      assert.ok(!wireStr.includes(secretName), 'filename leaked in plaintext');
+      assert.ok(!wireStr.includes(secretMime), 'mime leaked in plaintext');
+      const fNoKey = Q.decodeFrame(wireFile);
+      assert.strictEqual(fNoKey.name, undefined);
+      assert.strictEqual(fNoKey.payloadCrc, undefined);
+    });
+  }
+
+  // ── anti-poisoning (frame injection) & downgrade rejection ─────────────
+  {
+    const payload = rnd(60000, 321);
+    const tx = new Q.Transmission(payload, { password: 'correct-horse-battery', name: 'audit.bin' });
+    await tx.init();
+    const rx = new Q.ReceiverSession({ macKey: tx.macKey });
+    let frames = 0, injected = 0, done = false;
+    while (!done && frames < 10000) {
+      const frame = tx.nextFrame();
+      frames++;
+      const res = rx.ingest(Q.base45Decode(Q.base45Encode(frame)));
+      if (res.status === 'complete') { done = true; break; }
+      // Inject a forged frame every 5th frame (valid CRC-32, valid streamId, poisoned data)
+      if (frames % 5 === 0) {
+        injected++;
+        const forged = Q.encodeBlock(tx.streamId, 0, tx.rounds[0].K, frames % tx.rounds[0].K, rnd(500, frames));
+        const r1 = rx.ingest(forged);
+        assert.strictEqual(r1.status, 'auth-fail', 'downgrade frame must be rejected');
+        // Also forge a VER_AUTH frame with random 8-byte MAC
+        const forgedAuth = new Uint8Array(forged.length + 8);
+        forgedAuth.set(forged, 0);
+        forgedAuth[2] = Q.VER_AUTH;
+        forgedAuth.set(rnd(8, frames + 99), forged.length);
+        const r2 = rx.ingest(forgedAuth);
+        assert.strictEqual(r2.status, 'auth-fail', 'bad MAC frame must be rejected');
+      }
+    }
+    const out = await rx.finalize('correct-horse-battery');
+    ok('per-frame HMAC rejects 100% of poisoned/downgrade frames without corrupting transfer', () => {
+      assert.ok(done, 'transfer did not finish');
+      assert.strictEqual(rx.authRejected, injected * 2);
+      assert.strictEqual(sameBytes(out.data, payload), null);
+      assert.strictEqual(out.name, 'audit.bin');
+    });
+  }
+
+  // ── open-loop (true air-gap) multi-round transfer ──────────────────────
+  {
+    const payload = rnd(150 * 1024, 888);
+    const r = await transfer(payload, { blockSize: 500, compress: false }, (f, n) => n % 5 === 0, false);
+    ok('open-loop (zero network) multi-round 20% loss completes', () => {
+      assert.ok(r.done, 'open-loop failed');
+      assert.strictEqual(sameBytes(r.out.data, payload), null);
+    });
+  }
+
+  // ── high-rate lagged feedback never rewinds systematic pass ───────────
+  {
+    const payload = rnd(100 * 1024, 999);
+    const tx = new Q.Transmission(payload, { blockSize: 550, ecc: 'M', compress: false });
+    await tx.init();
+    const rx = new Q.ReceiverSession();
+    const lagQueue = [];
+    let frames = 0, done = false;
+    while (!done && frames < 1000) {
+      const f = tx.nextFrame();
+      frames++;
+      const res = rx.ingest(Q.base45Decode(Q.base45Encode(f)));
+      if (res.status === 'complete') { done = true; break; }
+      // Snapshot feedback every 2 frames with 10-frame pipeline lag
+      if (frames % 2 === 0) {
+        let cur = 0;
+        for (let i = 0; i < rx.totalRounds; i++) {
+          const r = rx.rounds.get(i);
+          if (!r || !r.complete) { cur = i; break; }
+        }
+        lagQueue.push({
+          deliverAt: frames + 10,
+          fb: { doneMask: rx.roundsDone(), doneRounds: rx.doneRoundsList(), roundIndex: cur, miss: rx.missing(cur) },
+        });
+      }
+      while (lagQueue.length && lagQueue[0].deliverAt <= frames) {
+        tx.applyFeedback(lagQueue.shift().fb);
+      }
+    }
+    const totalK = tx.rounds.reduce((s, r) => s + r.K, 0);
+    const out = await rx.finalize();
+    ok('high-rate lagged feedback causes zero systematic rewinds', () => {
+      assert.ok(done, 'did not finish');
+      assert.ok(frames <= Math.ceil(totalK * 1.06) + 10, `too many frames: ${frames} vs K=${totalK}`);
+      assert.strictEqual(sameBytes(out.data, payload), null);
+    });
+  }
+
+  // ── big file (>35 rounds) via doneRounds ───────────────────────────────
+  {
+    const payload = rnd(36 * 96 * 1024, 4242); // ~3.4 MB -> 36 rounds
+    const tx = new Q.Transmission(payload, { blockSize: 1000, ecc: 'L', compress: false });
+    await tx.init();
+    const rx = new Q.ReceiverSession();
+    let frames = 0, done = false;
+    while (!done && frames < 20000) {
+      const res = rx.ingest(tx.nextFrame());
+      frames++;
+      if (res.status === 'complete') { done = true; break; }
+      if (frames % 10 === 0) {
+        let cur = 0;
+        for (let i = 0; i < rx.totalRounds; i++) {
+          const r = rx.rounds.get(i);
+          if (!r || !r.complete) { cur = i; break; }
+        }
+        tx.applyFeedback({ doneMask: rx.roundsDone(), doneRounds: rx.doneRoundsList(), roundIndex: cur, miss: rx.missing(cur) });
+      }
+    }
+    const out = await rx.finalize();
+    ok('large multi-round file (>35 rounds) completes via doneRounds', () => {
+      assert.ok(done, 'big file failed to complete');
+      assert.ok(tx.rounds.length >= 35, 'expected >= 35 rounds, got ' + tx.rounds.length);
+      assert.strictEqual(sameBytes(out.data, payload), null);
+    });
+  }
+
+  // ── doneMask must not alias high rounds onto low ones ─────────────────
+  ok('completing round 33 does not mark round 1 done', () => {
+    const rx = new Q.ReceiverSession();
+    rx.rounds.set(33, { index: 33, complete: true });
+    rx.rounds.set(1, { index: 1, complete: false });
+    assert.strictEqual(rx.roundsDone() & (1 << 1), 0, 'round 1 falsely marked done');
+    const tx = new Q.Transmission(rnd(10, 1), {});
+    tx.rounds = Array.from({ length: 40 }, (_, i) => ({ index: i }));
+    tx.applyFeedback({ doneMask: rx.roundsDone(), doneRounds: rx.doneRoundsList(), roundIndex: 1, miss: [] });
+    assert.ok(!tx.isRoundDone(1), 'sender skipped round 1');
+    assert.ok(tx.isRoundDone(33), 'sender missed round 33');
+  });
+
   console.log('\n' + passed + ' checks passed' + (process.exitCode ? ', SOME FAILED' : ''));
 })();

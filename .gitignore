@@ -1,7 +1,13 @@
 # local TLS material - generate your own with python make_cert.py
 *.pem
 
-# run artifacts
+# runtime logs & telemetry
 metrics.jsonl
+logs.jsonl
+*.log
+
+# OS / python cache
 __pycache__/
 *.pyc
+.DS_Store
+Thumbs.db

@@ -15,11 +15,14 @@
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased">
 <div id="app" v-cloak class="min-h-screen">
-  <div class="mx-auto max-w-xl p-4 flex flex-col gap-4">
+  <div class="mx-auto max-w-xl md:max-w-2xl p-4 flex flex-col gap-4">
 
     <header class="flex items-center justify-between">
       <h1 class="text-xl font-semibold">QR File Receiver</h1>
-      <span class="text-xs text-slate-500">{{ engineLabel }}</span>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-slate-500">{{ engineLabel }}</span>
+        <a href="logs.html" target="_blank" class="rounded-md bg-slate-800 hover:bg-slate-700 px-2 py-1 text-slate-300">Logs ↗</a>
+      </div>
     </header>
 
     <div class="relative rounded-2xl overflow-hidden bg-black aspect-video" @click="tapFocus">
@@ -30,7 +33,7 @@
       <div v-if="reticle.show" class="absolute w-16 h-16 -ml-8 -mt-8 rounded-lg border-2 border-amber-400 pointer-events-none"
            :style="{ left: reticle.x + 'px', top: reticle.y + 'px' }"></div>
       <div v-if="running" class="absolute top-2 right-2 rounded-md bg-black/60 px-2 py-1 text-xs tabnum text-slate-300">
-        {{ scanFps }} scan/s
+        {{ scanFps }} scan/s<span v-if="perfLine" class="text-slate-400"> · {{ perfLine }}</span>
       </div>
       <div v-if="running && zoomMax > 1" class="absolute top-2 left-2 flex items-center rounded-md bg-black/60 text-xs">
         <button class="px-2 py-1 text-slate-200" @click.stop="nudgeZoom(-1)">−</button>
@@ -128,7 +131,7 @@ const ZBAR_BASE = new URL('vendor/', location.href).href;
 
 const WORKER_SRC = `
   const BASE = ${JSON.stringify(ZBAR_BASE)};
-  let z = null;
+  let z = null, qrScanner = null;
   try { importScripts(BASE + 'zbar-index.js'); z = self.zbarWasm; }
   catch (e) { self.postMessage({ type: 'error', error: 'import failed: ' + e }); }
   if (!z) self.postMessage({ type: 'error', error: 'zbarWasm missing' });
@@ -138,20 +141,26 @@ const WORKER_SRC = `
       const d = ev.data;
       if (d.type === 'init') {
         try {
-          await z.scanImageData(new ImageData(new Uint8ClampedArray(32 * 32 * 4), 32, 32));
+          qrScanner = await z.ZBarScanner.create();
+          // Disable all 1D barcode symbologies for 2-3x faster QR-only scanning
+          qrScanner.setConfig(z.ZBarSymbolType.ZBAR_NONE, z.ZBarConfigType.ZBAR_CFG_ENABLE, 0);
+          qrScanner.setConfig(z.ZBarSymbolType.ZBAR_QRCODE, z.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
+          qrScanner.setConfig(z.ZBarSymbolType.ZBAR_QRCODE, z.ZBarConfigType.ZBAR_CFG_BINARY, 1);
+          await z.scanImageData(new ImageData(new Uint8ClampedArray(32 * 32 * 4), 32, 32), qrScanner);
           self.postMessage({ type: 'ready' });
         } catch (e) { self.postMessage({ type: 'error', error: String(e) }); }
         return;
       }
-      if (d.type === 'scan') {
+      if (d.type === 'scanGray') {
         try {
-          const img = new ImageData(new Uint8ClampedArray(d.buffer), d.width, d.height);
-          const syms = await z.scanImageData(img);
-          const texts = [];
-          for (const s of syms) { try { texts.push(s.decode()); } catch (e) {} }
-          self.postMessage({ type: 'result', id: d.id, texts });
+          const syms = await z.scanGrayBuffer(d.buffer, d.width, d.height, qrScanner);
+          const items = [];
+          for (const s of syms) {
+            try { items.push({ text: s.decode(), points: s.points || null }); } catch (e) {}
+          }
+          self.postMessage({ type: 'result', id: d.id, items });
         } catch (e) {
-          self.postMessage({ type: 'result', id: d.id, texts: [], error: String(e) });
+          self.postMessage({ type: 'result', id: d.id, items: [], error: String(e) });
         }
       }
     };
@@ -177,7 +186,7 @@ createApp({
     const reticle = reactive({ show: false, x: 0, y: 0 });
     const zoomMax = ref(1), zoomValue = ref(1), videoSize = ref('');
     let zoomMin = 1, zoomStep = 0.5;
-    const scanFps = ref(0), lastScan = ref('');
+    const scanFps = ref(0), lastScan = ref(''), perfLine = ref('');
     const downloadUrl = ref('');
     const needPassword = ref(false), password = ref('');
     const fbState = ref('idle'), fbSent = ref(0), fbLastError = ref('');
@@ -187,15 +196,39 @@ createApp({
     let stream = null, track = null;
     let canvas = null, ctx = null;
     let detector = null;
-    let worker = null, workerReady = false, workerSeq = 0;
+    let workers = [], workerIdx = 0, workerReady = false, workerSeq = 0;
     const pending = new Map();
-    let rafId = 0, decoding = false, lastScanAt = 0;
+    let rafId = 0, inFlight = 0, maxInFlight = 1, lastScanAt = 0;
     let scanCount = 0, scanMark = 0;
-    let fbTimer = null;
-    let lastSym = 0, lastSymAt = 0, emaRate = 0;
-    let lastBytes = 0, runStart = 0;
-    let focusModes = [], lastSymbolAt = 0, lastFocusAt = 0;
-    const FEEDBACK_MS = 250;
+    let roi = null, roiMiss = 0, emptyStreak = 0, colorModeUntil = 0;
+    const seenRing = [], seenSet = new Set();
+    const symTimes = [], optTimes = [];
+    let fbTimer = null, telTimer = null;
+    let lastBytes = 0, lastBytesAt = 0, runStart = 0;
+    let focusModes = [], lastSymbolAt = 0, lastFocusAt = 0, lastReportAt = 0;
+    const FEEDBACK_MS = 80;
+
+    // ── telemetry (streamed to /telemetry for logs.html) ─────────────────
+    const telBuf = [];
+    const tm = { n: 0, drawSum: 0, decSum: 0, ingSum: 0, empty: 0, dup: 0, uniq: 0 };
+    function pushTel(ev) {
+      ev.session = streamHex || 'IDLE';
+      ev.tMs = runStart ? Math.round(performance.now() - runStart) : 0;
+      telBuf.push(ev);
+      if (telBuf.length >= 40) flushTel();
+    }
+    function flushTel() {
+      if (!telBuf.length) return;
+      const batch = telBuf.splice(0, telBuf.length);
+      try {
+        fetch('/telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ events: batch }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (e) {}
+    }
 
     const pct = computed(() => {
       if (!totalRounds.value) return 0;
@@ -227,16 +260,31 @@ createApp({
           const fmts = await window.BarcodeDetector.getSupportedFormats();
           if (fmts.includes('qr_code')) {
             detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-            engineLabel.value = 'native decoder';
-            return;
           }
         } catch (e) {}
       }
-      if (await startWorker()) { engineLabel.value = 'zbar worker'; return; }
+      // Always start 3-worker zbar pool (required for 3-channel RGB color QRs + fallback)
+      await startWorkerPool(3);
+      if (detector && workerReady) {
+        maxInFlight = 1; // 1 in-flight avoids GPU contention on BarcodeDetector(video)
+        engineLabel.value = 'native + 3x zbar RGB';
+        return;
+      }
+      if (detector) {
+        maxInFlight = 1;
+        engineLabel.value = 'native decoder';
+        return;
+      }
+      if (workerReady) {
+        maxInFlight = 1;
+        engineLabel.value = 'zbar pool (' + workers.length + 'x QR-only)';
+        return;
+      }
       try {
         await loadScript(ZBAR_BASE + 'zbar-index.js');
         if (window.zbarWasm) {
           try { window.zbarWasm.setModuleArgs({ locateFile: (p) => ZBAR_BASE + p }); } catch (e) {}
+          maxInFlight = 1;
           engineLabel.value = 'zbar (main thread)';
           return;
         }
@@ -252,13 +300,13 @@ createApp({
       });
     }
 
-    function startWorker() {
+    function spawnOneWorker() {
       return new Promise((resolve) => {
-        let url = null;
+        let url = null, w = null;
         try {
           url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' }));
-          worker = new Worker(url);
-        } catch (e) { resolve(false); return; }
+          w = new Worker(url);
+        } catch (e) { resolve(null); return; }
         if (url) URL.revokeObjectURL(url);
 
         let settled = false;
@@ -267,29 +315,37 @@ createApp({
           if (settled) return;
           settled = true;
           clearTimeout(timer);
-          if (!ok && worker) { try { worker.terminate(); } catch (e) {} worker = null; }
-          resolve(ok);
+          if (!ok && w) { try { w.terminate(); } catch (e) {} w = null; }
+          resolve(ok ? w : null);
         }
-        worker.onmessage = (e) => {
+        w.onmessage = (e) => {
           const d = e.data;
-          if (d.type === 'ready') { workerReady = true; finish(true); }
+          if (d.type === 'ready') finish(true);
           else if (d.type === 'error') finish(false);
           else if (d.type === 'result') {
             const cb = pending.get(d.id);
-            if (cb) { pending.delete(d.id); cb(d.texts || []); }
+            if (cb) { pending.delete(d.id); cb(d.items || []); }
           }
         };
-        worker.onerror = () => finish(false);
-        worker.postMessage({ type: 'init' });
+        w.onerror = () => finish(false);
+        w.postMessage({ type: 'init' });
       });
     }
 
-    function workerScan(img) {
+    async function startWorkerPool(count) {
+      const list = await Promise.all(Array.from({ length: count }, spawnOneWorker));
+      workers = list.filter(Boolean);
+      workerReady = workers.length > 0;
+      return workerReady;
+    }
+
+    function workerScanGray(grayU8, width, height) {
       return new Promise((resolve) => {
         const id = ++workerSeq;
         pending.set(id, resolve);
-        const buf = img.data.buffer;
-        worker.postMessage({ type: 'scan', id, buffer: buf, width: img.width, height: img.height }, [buf]);
+        const w = workers[workerIdx++ % workers.length];
+        const buf = grayU8.buffer;
+        w.postMessage({ type: 'scanGray', id, buffer: buf, width, height }, [buf]);
         setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve([]); } }, 4000);
       });
     }
@@ -299,23 +355,50 @@ createApp({
       cameraError.value = '';
       stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 16 / 9 },
+          frameRate: { ideal: 60, min: 24 },
+        },
       });
       videoEl.value.srcObject = stream;
       await videoEl.value.play();
       track = stream.getVideoTracks()[0];
-      // Focus is a bonus: a browser that cannot report capabilities must still give us a camera.
+      // Feature-detect camera capabilities and tune for crisp, high-fps QR scanning.
       let caps = {};
       try { caps = (track.getCapabilities && track.getCapabilities()) || {}; } catch (e) {}
       torchAvailable.value = !!caps.torch;
       focusModes = Array.isArray(caps.focusMode) ? caps.focusMode : [];
+
+      // 1. Push frameRate to phone's max (up to 60 fps)
+      if (caps.frameRate && caps.frameRate.max > 30) {
+        try { await track.applyConstraints({ frameRate: { ideal: Math.min(60, caps.frameRate.max) } }); } catch (e) {}
+      }
+
+      // 2. Antibanding / flicker suppression (if exposed by browser/WebView)
+      if (Array.isArray(caps.antibanding) && caps.antibanding.length) {
+        const ab = caps.antibanding.includes('auto') ? 'auto'
+          : caps.antibanding.includes('60hz') ? '60hz' : caps.antibanding[0];
+        try { await track.applyConstraints({ advanced: [{ antibanding: ab }] }); } catch (e) {}
+      }
+
+      // 3. Focus: start in continuous autofocus so raising the phone focuses immediately.
+      // Tap the QR on screen to lock single-shot focus and stop AF hunting.
       try {
         if (focusModes.includes('continuous')) {
           await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
         }
       } catch (e) {}
-      // Optical/digital zoom is how the native camera app gets pixels per module:
-      // same subject, fewer sensor pixels wasted on the room around it.
+
+      // 4. Mild negative exposure compensation (-0.3 EV) reduces bright LCD bloom
+      if (caps.exposureCompensation && typeof caps.exposureCompensation.min === 'number') {
+        const ec = Math.max(caps.exposureCompensation.min, Math.min(caps.exposureCompensation.max, -0.3));
+        try { await track.applyConstraints({ advanced: [{ exposureCompensation: ec }] }); } catch (e) {}
+      }
+
+      // 5. Optical/digital zoom (persisted)
       const z = caps.zoom;
       if (z && typeof z.max === 'number' && z.max > (z.min || 1)) {
         zoomMin = z.min || 1;
@@ -328,7 +411,12 @@ createApp({
       if (!videoEl.value.videoWidth) {
         await new Promise((r) => { videoEl.value.onloadedmetadata = r; setTimeout(r, 1500); });
       }
-      videoSize.value = videoEl.value.videoWidth + '×' + videoEl.value.videoHeight;
+      let fpsLabel = '';
+      try {
+        const st = track.getSettings ? track.getSettings() : {};
+        if (st.frameRate) fpsLabel = ' · ' + Math.round(st.frameRate) + 'fps';
+      } catch (e) {}
+      videoSize.value = videoEl.value.videoWidth + '×' + videoEl.value.videoHeight + fpsLabel;
     }
 
     function closeCamera() {
@@ -356,7 +444,13 @@ createApp({
     async function applyFocus(mode, poi) {
       if (!track || !focusModes.includes(mode)) return false;
       const c = poi ? { focusMode: mode, pointsOfInterest: [poi] } : { focusMode: mode };
-      try { await track.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; }
+      try {
+        await track.applyConstraints({ advanced: [c] });
+        if (poi) {
+          try { await track.applyConstraints({ advanced: [{ exposureMode: 'continuous', pointsOfInterest: [poi] }] }); } catch (e) {}
+        }
+        return true;
+      } catch (e) { return false; }
     }
 
     async function applyZoom(v) {
@@ -399,68 +493,257 @@ createApp({
     }
 
     // ── scan loop ────────────────────────────────────────────────────────
+    function isRecentDup(text) {
+      if (seenSet.has(text)) return true;
+      seenSet.add(text);
+      seenRing.push(text);
+      if (seenRing.length > 48) seenSet.delete(seenRing.shift());
+      return false;
+    }
+
+    function updateRoiFromBoxes(boxes, sx, sy, scale, w0, h0) {
+      if (!boxes.length) {
+        if (roi && ++roiMiss >= 3) { roi = null; roiMiss = 0; }
+        return;
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const b of boxes) {
+        if (b.x < minX) minX = b.x;
+        if (b.y < minY) minY = b.y;
+        if (b.x + b.w > maxX) maxX = b.x + b.w;
+        if (b.y + b.h > maxY) maxY = b.y + b.h;
+      }
+      const bw = maxX - minX, bh = maxY - minY;
+      const padX = Math.max(24, bw * 0.25) / scale, padY = Math.max(24, bh * 0.25) / scale;
+      const nx = Math.max(0, Math.floor(sx + minX / scale - padX));
+      const ny = Math.max(0, Math.floor(sy + minY / scale - padY));
+      const nw = Math.min(w0 - nx, Math.ceil(bw / scale + 2 * padX));
+      const nh = Math.min(h0 - ny, Math.ceil(bh / scale + 2 * padY));
+      if (nw >= 64 && nh >= 64) { roi = { x: nx, y: ny, w: nw, h: nh }; roiMiss = 0; }
+    }
+
     function loop(ts) {
       if (!running.value) return;
       rafId = requestAnimationFrame(loop);
-      if (ts - scanMark >= 1000) { scanFps.value = scanCount; scanCount = 0; scanMark = ts; }
-      // nothing decoded for a while: the picture went soft, ask for a new lock
+      if (ts - scanMark >= 1000) {
+        scanFps.value = scanCount;
+        const avgD = tm.n ? (tm.drawSum / tm.n) : 0;
+        const avgDec = tm.n ? (tm.decSum / tm.n) : 0;
+        const avgIng = tm.n ? (tm.ingSum / tm.n) : 0;
+        perfLine.value = `${avgDec.toFixed(0)}ms · u:${tm.uniq} d:${tm.dup} e:${tm.empty}`;
+        pushTel({
+          kind: 'stat',
+          scanFps: scanCount,
+          decodeRate: +decodeRate.value.toFixed(2),
+          goodput: Math.round(goodput.value),
+          avgDrawMs: +avgD.toFixed(2),
+          avgDecodeMs: +avgDec.toFixed(2),
+          avgIngestMs: +avgIng.toFixed(2),
+          uniqueScans: tm.uniq,
+          dupScans: tm.dup,
+          emptyScans: tm.empty,
+          badCrc: session.crcRejected,
+          authFail: session.authRejected,
+          roiActive: !!roi,
+          engine: engineLabel.value,
+          videoSize: videoSize.value,
+        });
+        tm.n = 0; tm.drawSum = 0; tm.decSum = 0; tm.ingSum = 0; tm.empty = 0; tm.dup = 0; tm.uniq = 0;
+        scanCount = 0; scanMark = ts;
+      }
       if (ts - lastSymbolAt > 2500 && ts - lastFocusAt > 2500 && focusModes.includes('single-shot')) {
         pulseFocus({ x: 0.5, y: 0.5 });
       }
-      if (decoding) return;
-      if (ts - lastScanAt < 30) return;      // ~30 scans/s ceiling
+      if (inFlight >= maxInFlight) return;
+      if (ts - lastScanAt < 8) return;
       lastScanAt = ts;
       scanOnce();
     }
 
+    function collectBoxes(items, texts, boxes) {
+      for (const it of items) {
+        texts.push(it.text);
+        if (it.points && it.points.length) {
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+          for (const p of it.points) {
+            if (p.x < x0) x0 = p.x; if (p.y < y0) y0 = p.y;
+            if (p.x > x1) x1 = p.x; if (p.y > y1) y1 = p.y;
+          }
+          boxes.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+        }
+      }
+    }
+
+    function isColorQrFrame(rgba, len) {
+      // Sample 128 pixels across the frame to detect saturated RGB color QRs
+      const step = Math.max(4, ((len >>> 2) / 128) | 0) * 4;
+      let satSum = 0, samples = 0;
+      for (let i = 0; i < len; i += step) {
+        const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+        const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        satSum += (mx - mn);
+        samples++;
+      }
+      return samples > 0 && (satSum / samples) > 28;
+    }
+
+    async function scanRgbFrame(v, texts, boxes, preRgba, preW, preH, sx, sy, scale, w0, h0) {
+      let rgba = preRgba, w = preW, h = preH;
+      if (!rgba) {
+        w0 = v.videoWidth; h0 = v.videoHeight;
+        sx = 0; sy = 0;
+        let sw = w0, sh = h0;
+        if (roi) { sx = roi.x; sy = roi.y; sw = roi.w; sh = roi.h; }
+        scale = Math.min(1, 720 / sw);
+        w = Math.max(32, Math.round(sw * scale)); h = Math.max(32, Math.round(sh * scale));
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        ctx.drawImage(v, sx, sy, sw, sh, 0, 0, w, h);
+        rgba = ctx.getImageData(0, 0, w, h).data;
+      }
+      if (!preRgba && !isColorQrFrame(rgba, rgba.length)) return false;
+      const nPx = w * h;
+      const chR = new Uint8Array(nPx), chG = new Uint8Array(nPx), chB = new Uint8Array(nPx);
+      for (let p = 0, i = 0; p < nPx; p++, i += 4) {
+        const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+        const rv = r - ((g + b) >> 2), gv = g - ((r + b) >> 2), bv = b - ((r + g) >> 2);
+        chR[p] = rv < 0 ? 0 : rv; chG[p] = gv < 0 ? 0 : gv; chB[p] = bv < 0 ? 0 : bv;
+      }
+      const [itR, itG, itB] = await Promise.all([
+        workerScanGray(chR, w, h), workerScanGray(chG, w, h), workerScanGray(chB, w, h),
+      ]);
+      collectBoxes(itR, texts, boxes); collectBoxes(itG, texts, boxes); collectBoxes(itB, texts, boxes);
+      // Only latch RGB mode when it actually decoded >= 1 QR code!
+      if (texts.length) {
+        colorModeUntil = performance.now() + 3000;
+        updateRoiFromBoxes(boxes, sx, sy, scale, w0, h0);
+        return true;
+      }
+      return false;
+    }
+
     async function scanOnce() {
-      if (!running.value || decoding) return;
+      if (!running.value || inFlight >= maxInFlight) return;
       const v = videoEl.value;
       if (!v || v.readyState < 2 || !v.videoWidth) return;
-      decoding = true;
+      inFlight++;
       try {
-        // Downscale: zbar on 1920×1080 is ~4x slower than 1280×720 for no gain.
-        const w0 = v.videoWidth, h0 = v.videoHeight;
-        const scale = Math.min(1, 1280 / w0);
-        const w = Math.round(w0 * scale), h = Math.round(h0 * scale);
-        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-        ctx.drawImage(v, 0, 0, w, h);
-
+        const t0 = performance.now();
         let texts = [];
-        if (detector) {
-          const found = await detector.detect(canvas);
+        const boxes = [];
+        let tDraw = t0;
+
+        if (detector && t0 < colorModeUntil && workerReady && workers.length >= 3) {
+          // Sticky RGB path: only active while RGB QRs are actually decoding
+          const okRgb = await scanRgbFrame(v, texts, boxes);
+          if (!okRgb) colorModeUntil = 0;
+        } else if (detector) {
+          // Zero-copy hardware path: pass <video> directly to BarcodeDetector (0 ms drawImage!)
+          const found = await detector.detect(v);
           for (const f of found) texts.push(f.rawValue);
-        } else if (workerReady && worker) {
-          texts = await workerScan(ctx.getImageData(0, 0, w, h));
+          if (!texts.length && workerReady && workers.length >= 3 && (++emptyStreak % 12 === 0)) {
+            await scanRgbFrame(v, texts, boxes);
+          }
+        } else if (workerReady && workers.length) {
+          const w0 = v.videoWidth, h0 = v.videoHeight;
+          let sx = 0, sy = 0, sw = w0, sh = h0;
+          if (roi) { sx = roi.x; sy = roi.y; sw = roi.w; sh = roi.h; }
+          const scale = Math.min(1, 1280 / sw);
+          const w = Math.max(32, Math.round(sw * scale)), h = Math.max(32, Math.round(sh * scale));
+          if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+          ctx.drawImage(v, sx, sy, sw, sh, 0, 0, w, h);
+          tDraw = performance.now();
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const rgba = imgData.data;
+          if (t0 < colorModeUntil && workers.length >= 3) {
+            const okRgb = await scanRgbFrame(v, texts, boxes, rgba, w, h, sx, sy, scale, w0, h0);
+            if (!okRgb) colorModeUntil = 0;
+          } else {
+            const nPx = w * h;
+            const gray = new Uint8Array(nPx);
+            for (let p = 0, i = 0; p < nPx; p++, i += 4) {
+              gray[p] = (19595 * rgba[i] + 38469 * rgba[i + 1] + 7472 * rgba[i + 2]) >>> 16;
+            }
+            const items = await workerScanGray(gray, w, h);
+            collectBoxes(items, texts, boxes);
+            if (!texts.length && workers.length >= 3 && (++emptyStreak % 12 === 0) && isColorQrFrame(rgba, rgba.length)) {
+              await scanRgbFrame(v, texts, boxes, rgba, w, h, sx, sy, scale, w0, h0);
+            } else {
+              updateRoiFromBoxes(boxes, sx, sy, scale, w0, h0);
+            }
+          }
         } else if (window.zbarWasm) {
+          const w0 = v.videoWidth, h0 = v.videoHeight;
+          const scale = Math.min(1, 1280 / w0);
+          const w = Math.max(32, Math.round(w0 * scale)), h = Math.max(32, Math.round(h0 * scale));
+          if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+          ctx.drawImage(v, 0, 0, w, h);
+          tDraw = performance.now();
           const syms = await window.zbarWasm.scanImageData(ctx.getImageData(0, 0, w, h));
           for (const s of syms) { try { texts.push(s.decode()); } catch (e) {} }
         }
+        const tDec = performance.now();
+
         scanCount++;
-        for (const t of texts) handlePayload(t);
+        if (!texts.length) tm.empty++;
+        else emptyStreak = 0;
+
+        for (const t of texts) {
+          if (isRecentDup(t)) { tm.dup++; continue; }
+          optTimes.push(tDec);
+          handlePayload(t, tDec - tDraw);
+        }
+        const tEnd = performance.now();
+        tm.n++;
+        tm.drawSum += (tDraw - t0);
+        tm.decSum += (tDec - tDraw);
+        tm.ingSum += (tEnd - tDec);
       } catch (err) {
       } finally {
-        decoding = false;
+        inFlight--;
       }
     }
 
     // ── ingest ───────────────────────────────────────────────────────────
-    function handlePayload(text) {
+    function handlePayload(text, decMs) {
       if (!text || text.length < 8) return;
       lastScan.value = text.slice(0, 60);
       let bytes;
       try { bytes = QSC.base45Decode(text); } catch (e) { return; }
 
-      if (!streamHex) {
-        const f = QSC.decodeFrame(bytes);
-        if (!f) return;
-        streamHex = f.streamId.toString(16).toUpperCase().padStart(8, '0');
+      const tIng0 = performance.now();
+      const res = session.ingest(bytes);
+      const ingMs = performance.now() - tIng0;
+      if (!streamHex && session.streamId !== null) {
+        streamHex = session.streamId.toString(16).toUpperCase().padStart(8, '0');
       }
 
-      const res = session.ingest(bytes);
       if (res.status === 'other-stream') { status.value = 'Another PC is on screen — keep pointing at yours'; return; }
-      if (res.status === 'bad' || res.status === 'done') return;
+      if (res.status === 'auth-fail') {
+        status.value = '⚠ Rejected forged/tampered frame (' + session.authRejected + ')';
+        pushTel({ kind: 'error', msg: 'auth-fail', count: session.authRejected });
+        return;
+      }
+      if (res.status === 'bad') {
+        pushTel({ kind: 'error', msg: 'bad-crc', count: session.crcRejected });
+        return;
+      }
+      if (res.status === 'done') return;
       lastSymbolAt = performance.now();
+      symTimes.push(lastSymbolAt);
+      tm.uniq++;
+
+      if (res.status === 'block' && res.seed !== undefined) {
+        pushTel({
+          kind: 'seed',
+          round: res.round,
+          seed: res.seed,
+          K: res.K,
+          known: res.known || res.K,
+          decodeMs: +(decMs || 0).toFixed(1),
+          ingestMs: +ingMs.toFixed(2),
+        });
+      }
 
       symbols.value = session.symbols;
 
@@ -472,14 +755,27 @@ createApp({
         status.value = 'Receiving ' + fileName.value +
           ((session.fileMeta.flags & 1) ? ' · compressed' : '') +
           ((session.fileMeta.flags & 2) ? ' · encrypted' : '');
+        pushTel({ kind: 'file', name: fileName.value, origSize: fileSize.value, txSize: expectedBytes.value, rounds: totalRounds.value });
       } else if (res.status === 'round') {
         if (session.totalRounds) totalRounds.value = session.totalRounds;
       } else if (res.status === 'round-complete') {
         roundsComplete.value = res.done;
         currentRoundPct.value = 0;
         status.value = 'Round ' + (res.round + 1) + ' done · ' + res.done + '/' + res.total;
+        const rObj = session.rounds.get(res.round);
+        pushTel({
+          kind: 'round',
+          round: res.round,
+          K: rObj ? rObj.K : 0,
+          blockSize: rObj ? rObj.blockSize : 0,
+          ecc: rObj ? rObj.ecc : '',
+          solves: rObj ? rObj.dec.solves : 0,
+          symbols: rObj ? rObj.dec.seen.size : 0,
+        });
+        report(); // immediately tell sender to advance without waiting 120ms
       } else if (res.status === 'round-corrupt') {
         status.value = 'Round ' + (res.round + 1) + ' checksum failed — rescanning it';
+        pushTel({ kind: 'error', msg: 'round-corrupt', round: res.round });
       } else if (res.status === 'block') {
         const r = session.rounds.get(res.round);
         if (r) {
@@ -488,6 +784,11 @@ createApp({
           blockSize.value = r.blockSize;
           if (r.ecc) ecc.value = r.ecc;
           currentRoundPct.value = Math.round((r.dec.count / r.K) * 100);
+          // During the last 15% of a round, push feedback faster so the sender
+          // stops re-sending blocks the phone just received.
+          if (r.dec.count >= r.K * 0.85 && performance.now() - lastReportAt >= 45) {
+            report();
+          }
         }
         roundsComplete.value = session.doneCount();
       }
@@ -504,7 +805,9 @@ createApp({
 
     function bytesReceived() {
       let n = 0;
-      session.rounds.forEach((r) => { n += r.dec.count * r.blockSize; });
+      session.rounds.forEach((r) => {
+        n += r.complete ? (r.length || r.K * r.blockSize) : r.dec.count * r.blockSize;
+      });
       return n;
     }
 
@@ -535,6 +838,14 @@ createApp({
       a.download = out.name || 'received.bin';
       document.body.appendChild(a); a.click(); a.remove();
       status.value = '✓ Done — ' + fmt(out.data.length) + ' saved';
+      pushTel({
+        kind: 'complete',
+        bytes: out.data.length,
+        symbols: session.symbols,
+        rounds: session.totalRounds,
+        ms: runStart ? Math.round(performance.now() - runStart) : 0,
+      });
+      try { if (navigator.vibrate) navigator.vibrate([40, 30, 60]); } catch (e) {}
       stop();
       report(true);
       logRun(out);
@@ -552,6 +863,8 @@ createApp({
         blockSize: blockSize.value,
         ecc: ecc.value,
         symbols: session.symbols,
+        authRejected: session.authRejected,
+        crcRejected: session.crcRejected,
         ms: Math.round(performance.now() - runStart),
       };
       try {
@@ -571,16 +884,18 @@ createApp({
     async function report(final) {
       if (!streamHex) return;
       const now = performance.now();
-      const dt = Math.max(0.2, (now - lastSymAt) / 1000);
-      const inst = (session.symbols - lastSym) / dt;
-      emaRate = emaRate ? emaRate * 0.6 + inst * 0.4 : inst;
-      lastSym = session.symbols;
-      lastSymAt = now;
-      decodeRate.value = Math.max(0, emaRate);
+      lastReportAt = now;
+      const winMs = 2000;
+      while (symTimes.length && symTimes[0] < now - winMs) symTimes.shift();
+      while (optTimes.length && optTimes[0] < now - winMs) optTimes.shift();
+      const elapsedSec = Math.max(0.5, Math.min(winMs, now - runStart) / 1000);
+      decodeRate.value = symTimes.length / elapsedSec;
+      const opticalRate = optTimes.length / elapsedSec;
 
       const got = bytesReceived();
-      goodput.value = Math.max(0, (got - lastBytes) / dt);
-      lastBytes = got;
+      const avgBlock = blockSize.value || 550;
+      goodput.value = Math.round(decodeRate.value * avgBlock);
+      lastBytes = got; lastBytesAt = now;
       receivedBytes.value = got;
 
       let roundIndex = 0, roundProgress = 0;
@@ -595,12 +910,14 @@ createApp({
       const payload = {
         session: streamHex,
         decodeRate: +decodeRate.value.toFixed(2),
+        opticalRate: +opticalRate.toFixed(2),
         goodput: Math.round(goodput.value),
         roundIndex: roundIndex,
         roundProgress: +roundProgress.toFixed(3),
         roundsComplete: session.doneCount(),
         totalRounds: n,
         doneMask: mask,
+        doneRounds: session.doneRoundsList(),
         miss: miss,
         symbols: session.symbols,
         blockSize: blockSize.value,
@@ -627,27 +944,44 @@ createApp({
       }
     }
 
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try { if ('wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+    function releaseWakeLock() {
+      try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {}
+    }
+
     // ── controls ─────────────────────────────────────────────────────────
     async function start() {
       if (running.value) return;
       try { if (!stream) await openCamera(); }
       catch (e) { cameraError.value = 'Camera unavailable: ' + (e.message || e.name); return; }
       running.value = true;
+      requestWakeLock();
       status.value = 'Scanning…';
       scanCount = 0; scanMark = performance.now(); lastScanAt = 0;
       runStart = performance.now();
       lastSymbolAt = performance.now();
-      lastSymAt = performance.now(); lastSym = session.symbols;
+      lastBytesAt = performance.now();
+      symTimes.length = 0; optTimes.length = 0;
       pulseFocus({ x: 0.5, y: 0.5 });
       rafId = requestAnimationFrame(loop);
       startFeedback();
+      if (!telTimer) telTimer = setInterval(flushTel, 600);
     }
-    function stop() { running.value = false; cancelAnimationFrame(rafId); stopFeedback(); }
+    function stop() {
+      running.value = false; cancelAnimationFrame(rafId); stopFeedback(); releaseWakeLock();
+      if (telTimer) { clearInterval(telTimer); telTimer = null; }
+      flushTel();
+    }
 
     function reset() {
       stop(); closeCamera();
       session = new QSC.ReceiverSession();
-      streamHex = null; emaRate = 0; lastBytes = 0; lastSym = 0; runStart = 0;
+      streamHex = null; lastBytes = 0; lastBytesAt = 0; runStart = 0;
+      symTimes.length = 0; optTimes.length = 0;
+      roi = null; roiMiss = 0; colorModeUntil = 0; seenRing.length = 0; seenSet.clear();
       focusLocked.value = false; lastFocusAt = 0; lastSymbolAt = 0;
       symbols.value = 0; decodeRate.value = 0; goodput.value = 0;
       receivedBytes.value = 0; expectedBytes.value = 0;
@@ -673,7 +1007,7 @@ createApp({
       videoEl, running, status, fileName, fileSize, totalRounds, roundsComplete,
       currentRoundPct, currentK, blockSize, ecc, symbols, decodeRate, goodput,
       receivedBytes, expectedBytes, engineLabel, cameraError, torchAvailable, torchOn,
-      scanFps, lastScan, downloadUrl, needPassword, password, pct, etaText,
+      scanFps, lastScan, perfLine, downloadUrl, needPassword, password, pct, etaText,
       fbState, fbSent, fbLastError, reticle, focusLocked,
       zoomMax, zoomValue, videoSize, nudgeZoom,
       start, stop, reset, toggleTorch, submitPassword, tapFocus, fmt,

@@ -37,7 +37,8 @@
 
   // ── constants ───────────────────────────────────────────────────────────
   var VER = 0x05;
-  var T_FILE = 0x01, T_BLOCK = 0x02, T_ROUND = 0x04;
+  var VER_AUTH = 0x85;
+  var T_FILE = 0x01, T_BLOCK = 0x02, T_ROUND = 0x04, T_FILE_ENC = 0x05;
   var MAGIC_0 = 0x51, MAGIC_1 = 0x53;
 
   // LT degree distribution is a protocol constant, not negotiated: the
@@ -169,11 +170,19 @@
   }
 
   // Same (round, seed) always yields the same index set on both sides.
+  // For parity symbols (seed >= K), 2/3 use a medium-dense degree (~25% of K)
+  // to eliminate the GF(2) coupon-collector tail, while 1/3 use Robust Soliton
+  // so peeling-only decoders still make progress.
   function symbolIndices(seed, round, K) {
     if (seed < K) return [seed];
     var rand = splitmix32((seed ^ Math.imul(round + 1, 0x9e3779b1)) >>> 0);
-    var cdf = degreeCdf(K);
-    var degree = Math.min(sampleDegree(cdf, rand), K);
+    var degree;
+    if ((seed - K) % 3 !== 0 && K > 4) {
+      degree = Math.min(K, Math.max(4, Math.ceil(K * 0.25)));
+    } else {
+      var cdf = degreeCdf(K);
+      degree = Math.min(sampleDegree(cdf, rand), K);
+    }
     var used = new Set(), out = [], tries = 0;
     while (out.length < degree && used.size < K && tries < degree * 8 + 64) {
       var idx = rand() % K; tries++;
@@ -184,7 +193,15 @@
 
   function xorInto(dst, src) {
     var n = dst.length < src.length ? dst.length : src.length;
-    for (var i = 0; i < n; i++) dst[i] ^= src[i];
+    var i = 0;
+    if ((dst.byteOffset & 3) === 0 && (src.byteOffset & 3) === 0 && n >= 16) {
+      var n4 = n >>> 2;
+      var d32 = new Uint32Array(dst.buffer, dst.byteOffset, n4);
+      var s32 = new Uint32Array(src.buffer, src.byteOffset, n4);
+      for (var j = 0; j < n4; j++) d32[j] ^= s32[j];
+      i = n4 << 2;
+    }
+    for (; i < n; i++) dst[i] ^= src[i];
   }
 
   function padTo(data, size) {
@@ -213,6 +230,43 @@
     wU16(buf, o, mB.length); o += 2;
     buf.set(nB, o); o += nB.length;
     buf.set(mB, o); o += mB.length;
+    wU32(buf, o, crc32(buf, 0, o));
+    return buf;
+  }
+
+  function packMeta(origSize, payloadCrc, name, mime) {
+    var nB = utf8(name || 'file.bin'), mB = utf8(mime || 'application/octet-stream');
+    var buf = new Uint8Array(12 + nB.length + mB.length), o = 0;
+    wU32(buf, o, origSize); o += 4;
+    wU32(buf, o, payloadCrc); o += 4;
+    wU16(buf, o, nB.length); o += 2;
+    wU16(buf, o, mB.length); o += 2;
+    buf.set(nB, o); o += nB.length;
+    buf.set(mB, o);
+    return buf;
+  }
+
+  function unpackMeta(buf) {
+    if (buf.length < 12) throw new Error('bad meta');
+    var origSize = rU32(buf, 0), payloadCrc = rU32(buf, 4);
+    var nameLen = rU16(buf, 8), mimeLen = rU16(buf, 10);
+    if (12 + nameLen + mimeLen > buf.length) throw new Error('bad meta');
+    var name = fromUtf8(buf.subarray(12, 12 + nameLen));
+    var mime = fromUtf8(buf.subarray(12 + nameLen, 12 + nameLen + mimeLen));
+    return { origSize: origSize, payloadCrc: payloadCrc, name: name, mime: mime };
+  }
+
+  function encodeEncryptedFileManifest(sid, totalRounds, txSize, flags, salt, encMeta) {
+    var len = 34 + encMeta.length;
+    var buf = new Uint8Array(len + 4), o = 0;
+    buf[o++] = MAGIC_0; buf[o++] = MAGIC_1; buf[o++] = VER; buf[o++] = T_FILE_ENC;
+    wU32(buf, o, sid); o += 4;
+    wU16(buf, o, totalRounds); o += 2;
+    wU16(buf, o, flags); o += 2;
+    wU32(buf, o, txSize); o += 4;
+    buf.set(salt.subarray(0, 16), o); o += 16;
+    wU16(buf, o, encMeta.length); o += 2;
+    buf.set(encMeta, o); o += encMeta.length;
     wU32(buf, o, crc32(buf, 0, o));
     return buf;
   }
@@ -247,45 +301,82 @@
   }
 
   // ── frame decoder ───────────────────────────────────────────────────────
-  function decodeFrame(bytes) {
+  function decodeFrame(bytes, macKey) {
     var n = bytes.length;
     if (n < 24) return null;
-    if (bytes[0] !== MAGIC_0 || bytes[1] !== MAGIC_1 || bytes[2] !== VER) return null;
+    if (bytes[0] !== MAGIC_0 || bytes[1] !== MAGIC_1) return null;
+    var ver = bytes[2];
+    if (ver !== VER && ver !== VER_AUTH) return null;
+
+    var hasMac = (ver === VER_AUTH);
+    var authenticated = false;
+    var frameBytes = bytes;
+    if (hasMac) {
+      if (n < 32) return null;
+      if (macKey) {
+        frameBytes = verifyAndStripMac(bytes, macKey);
+        if (!frameBytes) return { type: 'auth-fail' };
+        authenticated = true;
+      } else {
+        frameBytes = bytes.subarray(0, n - 8);
+      }
+      n = frameBytes.length;
+    } else if (macKey) {
+      // Downgrade attempt: unauthenticated frame when session requires MAC
+      return { type: 'auth-fail' };
+    }
+
     var end = n - 4;
-    if (crc32(bytes, 0, end) !== rU32(bytes, end)) return null;
-    var type = bytes[3];
-    var sid = rU32(bytes, 4);
+    if (crc32(frameBytes, 0, end) !== rU32(frameBytes, end)) return null;
+    var type = frameBytes[3];
+    var sid = rU32(frameBytes, 4);
+
+    if (type === T_FILE_ENC) {
+      if (n < 38) return null;
+      var totalRoundsE = rU16(frameBytes, 8), flagsE = rU16(frameBytes, 10);
+      var txSizeE = rU32(frameBytes, 12);
+      var salt = frameBytes.slice(16, 32);
+      var encMetaLen = rU16(frameBytes, 32);
+      if (34 + encMetaLen > end) return null;
+      var encMeta = frameBytes.slice(34, 34 + encMetaLen);
+      return { type: 'file', streamId: sid, totalRounds: totalRoundsE, flags: flagsE,
+               txSize: txSizeE, salt: salt, encMeta: encMeta,
+               hasMac: hasMac, authenticated: authenticated };
+    }
 
     if (type === T_FILE) {
       if (n < 32) return null;
-      var totalRounds = rU16(bytes, 8), flags = rU16(bytes, 10);
-      var origSize = rU32(bytes, 12), txSize = rU32(bytes, 16), payloadCrc = rU32(bytes, 20);
-      var nameLen = rU16(bytes, 24), mimeLen = rU16(bytes, 26);
+      var totalRounds = rU16(frameBytes, 8), flags = rU16(frameBytes, 10);
+      var origSize = rU32(frameBytes, 12), txSize2 = rU32(frameBytes, 16), payloadCrc = rU32(frameBytes, 20);
+      var nameLen = rU16(frameBytes, 24), mimeLen = rU16(frameBytes, 26);
       var o = 28;
       if (o + nameLen + mimeLen > end) return null;
-      var name = fromUtf8(bytes.subarray(o, o + nameLen)); o += nameLen;
-      var mime = fromUtf8(bytes.subarray(o, o + mimeLen));
+      var name = fromUtf8(frameBytes.subarray(o, o + nameLen)); o += nameLen;
+      var mime = fromUtf8(frameBytes.subarray(o, o + mimeLen));
       return { type: 'file', streamId: sid, totalRounds: totalRounds, flags: flags,
-               origSize: origSize, txSize: txSize, payloadCrc: payloadCrc, name: name, mime: mime };
+               origSize: origSize, txSize: txSize2, payloadCrc: payloadCrc, name: name, mime: mime,
+               hasMac: hasMac, authenticated: authenticated };
     }
 
     if (type === T_ROUND) {
       if (n < 34) return null;
       return {
         type: 'round', streamId: sid,
-        round: rU16(bytes, 8), totalRounds: rU16(bytes, 10),
-        K: rU16(bytes, 12), blockSize: rU16(bytes, 14),
-        offset: rU32(bytes, 16), length: rU32(bytes, 20), roundCrc: rU32(bytes, 24),
-        ecc: eccName(bytes[28]),
+        round: rU16(frameBytes, 8), totalRounds: rU16(frameBytes, 10),
+        K: rU16(frameBytes, 12), blockSize: rU16(frameBytes, 14),
+        offset: rU32(frameBytes, 16), length: rU32(frameBytes, 20), roundCrc: rU32(frameBytes, 24),
+        ecc: eccName(frameBytes[28]),
+        hasMac: hasMac, authenticated: authenticated,
       };
     }
 
     if (type === T_BLOCK) {
       if (n < 24) return null;
-      var K = rU16(bytes, 10);
+      var K = rU16(frameBytes, 10);
       if (K < 1) return null;
-      return { type: 'block', streamId: sid, round: rU16(bytes, 8), K: K,
-               seed: rU32(bytes, 12), data: bytes.subarray(16, end) };
+      return { type: 'block', streamId: sid, round: rU16(frameBytes, 8), K: K,
+               seed: rU32(frameBytes, 12), data: frameBytes.subarray(16, end),
+               hasMac: hasMac, authenticated: authenticated };
     }
 
     return null;
@@ -305,71 +396,217 @@
     throw new Error('inflate unavailable');
   }
 
-  // ── AES-GCM ─────────────────────────────────────────────────────────────
+  // ── CSPRNG + SHA-256 + HMAC-SHA256 (sync, zero-dep, browser + Node) ─────
+  function randomBytes(n) {
+    var out = new Uint8Array(n);
+    if (root.crypto && root.crypto.getRandomValues) {
+      root.crypto.getRandomValues(out);
+      return out;
+    }
+    if (typeof require === 'function') {
+      var buf = require('crypto').randomBytes(n);
+      out.set(buf);
+      return out;
+    }
+    throw new Error('CSPRNG unavailable');
+  }
+
+  function randomU32() {
+    var b = randomBytes(4);
+    return ((b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0);
+  }
+
+  var SHA256_K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ]);
+
+  function sha256(bytes) {
+    var len = bytes.length;
+    var bitLenHi = Math.floor((len * 8) / 0x100000000) >>> 0;
+    var bitLenLo = (len * 8) >>> 0;
+    var paddedLen = ((len + 9 + 63) >>> 6) << 6;
+    var buf = new Uint8Array(paddedLen);
+    buf.set(bytes, 0);
+    buf[len] = 0x80;
+    buf[paddedLen - 8] = (bitLenHi >>> 24) & 0xFF;
+    buf[paddedLen - 7] = (bitLenHi >>> 16) & 0xFF;
+    buf[paddedLen - 6] = (bitLenHi >>> 8) & 0xFF;
+    buf[paddedLen - 5] = bitLenHi & 0xFF;
+    buf[paddedLen - 4] = (bitLenLo >>> 24) & 0xFF;
+    buf[paddedLen - 3] = (bitLenLo >>> 16) & 0xFF;
+    buf[paddedLen - 2] = (bitLenLo >>> 8) & 0xFF;
+    buf[paddedLen - 1] = bitLenLo & 0xFF;
+
+    var h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+    var h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    var w = new Uint32Array(64);
+
+    for (var off = 0; off < paddedLen; off += 64) {
+      for (var i = 0; i < 16; i++) {
+        var j = off + i * 4;
+        w[i] = ((buf[j] << 24) | (buf[j + 1] << 16) | (buf[j + 2] << 8) | buf[j + 3]) >>> 0;
+      }
+      for (i = 16; i < 64; i++) {
+        var s0 = ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^ ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^ (w[i - 15] >>> 3);
+        var s1 = ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^ ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      var a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+      for (i = 0; i < 64; i++) {
+        var S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        var ch = (e & f) ^ ((~e) & g);
+        var temp1 = (h + S1 + ch + SHA256_K[i] + w[i]) >>> 0;
+        var S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        var maj = (a & b) ^ (a & c) ^ (b & c);
+        var temp2 = (S0 + maj) >>> 0;
+        h = g; g = f; f = e; e = (d + temp1) >>> 0;
+        d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+      }
+      h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+      h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+    }
+    var out = new Uint8Array(32);
+    var hs = [h0, h1, h2, h3, h4, h5, h6, h7];
+    for (var k = 0; k < 8; k++) {
+      out[k * 4] = (hs[k] >>> 24) & 0xFF;
+      out[k * 4 + 1] = (hs[k] >>> 16) & 0xFF;
+      out[k * 4 + 2] = (hs[k] >>> 8) & 0xFF;
+      out[k * 4 + 3] = hs[k] & 0xFF;
+    }
+    return out;
+  }
+
+  function hmacSha256(key, data) {
+    var k = key.length > 64 ? sha256(key) : key;
+    var ipad = new Uint8Array(64 + data.length);
+    var opad = new Uint8Array(64 + 32);
+    for (var i = 0; i < 64; i++) {
+      var kb = i < k.length ? k[i] : 0;
+      ipad[i] = kb ^ 0x36;
+      opad[i] = kb ^ 0x5c;
+    }
+    ipad.set(data, 64);
+    opad.set(sha256(ipad), 64);
+    return sha256(opad);
+  }
+
+  function constTimeEq(a, b) {
+    if (a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= (a[i] ^ b[i]);
+    return diff === 0;
+  }
+
+  // ── AES-GCM + HKDF Key Separation ───────────────────────────────────────
   var PBKDF2_ITERATIONS = 600000;
   function subtle() {
     var c = root.crypto;
     if (!c || !c.subtle) throw new Error('WebCrypto unavailable — need https or localhost');
     return c.subtle;
   }
-  function deriveKey(password, sid) {
+  function deriveMasterBits(password, saltBytes) {
     var enc = new TextEncoder();
-    var salt = enc.encode('qr-stream-v2:' + sid);
-    return subtle().importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey'])
+    return subtle().importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits'])
       .then(function (km) {
-        return subtle().deriveKey(
-          { name: 'PBKDF2', salt: salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-          km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        return subtle().deriveBits(
+          { name: 'PBKDF2', salt: saltBytes, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+          km, 256);
+      })
+      .then(function (bits) {
+        var master = new Uint8Array(bits);
+        var aesRaw = hmacSha256(master, enc.encode('qr-stream-aes-v5'));
+        var macKey = hmacSha256(master, enc.encode('qr-stream-mac-v5'));
+        return subtle().importKey('raw', aesRaw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+          .then(function (aesKey) { return { aesKey: aesKey, macKey: macKey }; });
       });
   }
-  function encryptBytes(plain, password, sid) {
-    return deriveKey(password, sid).then(function (key) {
-      var iv = root.crypto.getRandomValues(new Uint8Array(12));
-      return subtle().encrypt({ name: 'AES-GCM', iv: iv }, key, plain).then(function (ct) {
-        var out = new Uint8Array(12 + ct.byteLength);
-        out.set(iv, 0); out.set(new Uint8Array(ct), 12);
-        return out;
-      });
+  function deriveKey(password, sid, saltBytes) {
+    var salt = saltBytes || new TextEncoder().encode('qr-stream-v2:' + sid);
+    return deriveMasterBits(password, salt);
+  }
+  function encryptWithKey(plain, aesKey) {
+    var iv = randomBytes(12);
+    return subtle().encrypt({ name: 'AES-GCM', iv: iv }, aesKey, plain).then(function (ct) {
+      var out = new Uint8Array(12 + ct.byteLength);
+      out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+      return out;
     });
   }
-  function decryptBytes(cipher, password, sid) {
-    return deriveKey(password, sid).then(function (key) {
-      var iv = cipher.subarray(0, 12), ct = cipher.subarray(12);
-      return subtle().decrypt({ name: 'AES-GCM', iv: iv }, key, ct).then(function (pt) {
-        return new Uint8Array(pt);
-      });
+  function decryptWithKey(cipher, aesKey) {
+    var iv = cipher.subarray(0, 12), ct = cipher.subarray(12);
+    return subtle().decrypt({ name: 'AES-GCM', iv: iv }, aesKey, ct).then(function (pt) {
+      return new Uint8Array(pt);
     }).catch(function () {
       throw new Error('Wrong password, or the data was tampered with');
     });
   }
+  function encryptBytes(plain, password, sid, saltBytes) {
+    return deriveKey(password, sid, saltBytes).then(function (keys) {
+      return encryptWithKey(plain, keys.aesKey);
+    });
+  }
+  function decryptBytes(cipher, password, sid, saltBytes) {
+    return deriveKey(password, sid, saltBytes).then(function (keys) {
+      return decryptWithKey(cipher, keys.aesKey);
+    });
+  }
+
+  function signFrame(frameBytes, macKey) {
+    if (!macKey) return frameBytes;
+    var tag = hmacSha256(macKey, frameBytes).subarray(0, 8);
+    var out = new Uint8Array(frameBytes.length + 8);
+    out.set(frameBytes, 0);
+    out.set(tag, frameBytes.length);
+    return out;
+  }
+
+  function verifyAndStripMac(bytes, macKey) {
+    if (bytes.length < 32) return null;
+    var body = bytes.subarray(0, bytes.length - 8);
+    var tag = bytes.subarray(bytes.length - 8);
+    var expected = hmacSha256(macKey, body).subarray(0, 8);
+    return constTimeEq(tag, expected) ? body : null;
+  }
 
   // ── Transmission (sender) ───────────────────────────────────────────────
-  var ROUND_TARGET_BYTES = 48 * 1024;
-  var MAX_ROUNDS = 30;       // keeps the "done" bitmask inside a 32-bit int
+  var ROUND_TARGET_BYTES = 96 * 1024;
+  var MAX_ROUNDS = 1024;     // supports 100+ MB files via doneRounds + doneMask
   var OVER_SEND = 1.15;      // symbols per round we *expect* to need for the ETA
   var HARD_CAP = 2.2;        // stop a round only if feedback goes silent this long
-  var FILE_EVERY = 32;       // file manifest airtime share
-  var ROUND_EVERY = 64;      // round manifest airtime share
+  var FILE_EVERY = 64;       // file manifest airtime share
+  var ROUND_EVERY = 128;     // round manifest airtime share
 
   function pickRounds(size) {
-    return Math.max(1, Math.min(MAX_ROUNDS, Math.ceil(size / ROUND_TARGET_BYTES)));
+    var target = size > 4 * 1048576 ? 256 * 1024 : ROUND_TARGET_BYTES;
+    return Math.max(1, Math.min(MAX_ROUNDS, Math.ceil(size / target)));
   }
 
   function Transmission(payload, opts) {
     opts = opts || {};
     this.opts = {
       blockSize: 500, ecc: 'M', compress: true,
-      password: '', name: 'file.bin', mime: 'application/octet-stream',
+      password: '', authKey: null, name: 'file.bin', mime: 'application/octet-stream',
       overSend: OVER_SEND,
       ...opts,
     };
-    this.streamId = (Math.random() * 0xFFFFFFFF) >>> 0;
+    this.streamId = randomU32();
     this.origSize = payload.length;
     this.payloadCrc = crc32(payload);
     this.source = payload;
     this.flags = 0;
     this.data = payload;
     this.txSize = payload.length;
+    this.salt = null;
+    this.aesKey = null;
+    this.macKey = null;
+    this.encMeta = null;
     this.rounds = [];
     this.roundIndex = 0;
     this.frameIndex = 0;
@@ -377,22 +614,45 @@
     this.sinceRound = 0;
     this.queue = [];
     this.doneMask = 0;
+    this.doneSet = new Set();
+    this.hasFeedback = false;
+    this.peerHasFile = false;
     this.wanted = [];
     this.wantedRound = -1;
     this.wantedAt = 0;
+    this.wantedSentAt = new Map();
+    this.batchSize = 1;
   }
+
+  var PRECOMPRESSED_RE = /\.(jpe?g|png|webp|gif|mp4|mkv|webm|mov|mp3|aac|flac|ogg|zip|gz|tgz|bz2|xz|7z|rar|pdf|apk|docx|xlsx|pptx)$/i;
 
   Transmission.prototype.init = async function () {
     var data = this.source;
-    if (this.opts.compress && data.length > 128) {
+    var skipCompress = PRECOMPRESSED_RE.test(this.opts.name || '');
+    if (!skipCompress && data.length > 512 * 1024) {
+      try {
+        var sample = deflateBytes(data.subarray(0, 16384));
+        if (sample.length >= 16384 * 0.92) skipCompress = true;
+      } catch (e) { skipCompress = true; }
+    }
+    if (this.opts.compress && !skipCompress && data.length > 128) {
       try {
         var c = deflateBytes(data);
         if (c.length < data.length * 0.95) { data = c; this.flags |= 1; }
       } catch (e) { /* keep raw */ }
     }
     if (this.opts.password) {
-      data = await encryptBytes(data, this.opts.password, this.streamId);
-      this.flags |= 2;
+      this.salt = randomBytes(16);
+      var keys = await deriveKey(this.opts.password, this.streamId, this.salt);
+      this.aesKey = keys.aesKey;
+      this.macKey = keys.macKey;
+      data = await encryptWithKey(data, this.aesKey);
+      var metaPlain = packMeta(this.origSize, this.payloadCrc, this.opts.name, this.opts.mime);
+      this.encMeta = await encryptWithKey(metaPlain, this.aesKey);
+      this.flags |= 6; // bit 2 = encrypted, bit 4 = per-frame HMAC
+    } else if (this.opts.authKey) {
+      this.macKey = this.opts.authKey;
+      this.flags |= 4;
     }
     this.data = data;
     this.txSize = data.length;
@@ -406,12 +666,13 @@
       this.rounds.push({
         index: i, offset: offset,
         length: Math.min(chunk, data.length - offset),
-        blockSize: 0, ecc: 'M', K: 0, seed: 0, emitted: 0,
+        blockSize: 0, ecc: 'M', K: 0, seed: 0, emitted: 0, budget: 0,
         blocks: [], roundCrc: 0, qrVersion: 0, startedAt: 0,
       });
     }
     this.startRound(0, this.opts.blockSize, this.opts.ecc);
     this.roundIndex = 0;
+    this.wantedRound = 0;
     this.queue.push({ kind: 'file' });
     this.queue.push({ kind: 'round', round: 0 });
     return this;
@@ -425,6 +686,7 @@
     r.K = Math.max(1, Math.ceil(r.length / blockSize));
     r.seed = 0;
     r.emitted = 0;
+    r.budget = Math.ceil(r.K * 1.12);
     r.startedAt = Date.now();
     var slice = this.data.subarray(r.offset, r.offset + r.length);
     r.roundCrc = crc32(slice);
@@ -444,19 +706,41 @@
     var r = this.rounds[index];
     if (!r) return;
     if (!r.blockSize) this.startRound(index, this.opts.blockSize, this.opts.ecc);
+    else if (!this.hasFeedback && r.emitted >= r.budget) {
+      r.budget += Math.max(4, Math.ceil(r.K * 0.12));
+    }
     this.roundIndex = index;
+    this.wantedRound = index;
+    this.wanted = [];
+    this.wantedAt = 0;
+    this.wantedSentAt.clear();
     this.queue.push({ kind: 'round', round: index });
     this.sinceRound = 0;
   };
 
+  Transmission.prototype._wrapFrame = function (raw) {
+    if (!this.macKey) return raw;
+    raw[2] = VER_AUTH;
+    // Recompute crc32 with VER_AUTH in byte[2] before signing
+    var end = raw.length - 4;
+    wU32(raw, end, crc32(raw, 0, end));
+    return signFrame(raw, this.macKey);
+  };
+
   Transmission.prototype.fileFrame = function () {
-    return encodeFileManifest(this.streamId, this.rounds.length, this.origSize,
-      this.txSize, this.payloadCrc, this.flags, this.opts.name, this.opts.mime);
+    var raw = (this.flags & 2)
+      ? encodeEncryptedFileManifest(this.streamId, this.rounds.length, this.txSize, this.flags, this.salt, this.encMeta)
+      : encodeFileManifest(this.streamId, this.rounds.length, this.origSize, this.txSize, this.payloadCrc, this.flags, this.opts.name, this.opts.mime);
+    return this._wrapFrame(raw);
   };
 
   Transmission.prototype.roundFrame = function (r) {
-    return encodeRoundManifest(this.streamId, r.index, this.rounds.length, r.K,
-      r.blockSize, r.offset, r.length, r.roundCrc, r.ecc);
+    return this._wrapFrame(encodeRoundManifest(this.streamId, r.index, this.rounds.length, r.K,
+      r.blockSize, r.offset, r.length, r.roundCrc, r.ecc));
+  };
+
+  Transmission.prototype.isRoundDone = function (idx) {
+    return this.doneSet.has(idx) || (idx < 30 && ((this.doneMask & (1 << idx)) !== 0));
   };
 
   /** Which round should be on screen next? Skips rounds already confirmed. */
@@ -464,7 +748,7 @@
     var n = this.rounds.length, cur = this.roundIndex;
     for (var i = 1; i < n; i++) {
       var idx = (cur + i) % n;
-      if (!(this.doneMask & (1 << idx))) return idx;
+      if (!this.isRoundDone(idx)) return idx;
     }
     return cur;
   };
@@ -492,27 +776,58 @@
 
     var r = this.current();
 
-    // 1. re-send blocks the receiver explicitly asked for (cheap, exact)
-    if (this.wantedRound === r.index && this.wanted.length) {
-      var w = this.wanted[this.wantedAt % this.wanted.length];
-      this.wantedAt++;
-      if (w >= 0 && w < r.K) {
-        r.emitted++;
-        this.frameIndex++;
-        return encodeBlock(this.streamId, r.index, r.K, w, r.blocks[w]);
-      }
-    }
-
-    if (r.emitted >= Math.ceil(r.K * HARD_CAP) && this.rounds.length > 1) {
+    var cap = this.hasFeedback ? Math.ceil(r.K * HARD_CAP) : r.budget;
+    if (r.emitted >= cap && this.rounds.length > 1) {
       var next = this.nextRound();
       if (next !== this.roundIndex) this.enterRound(next);
       r = this.current();
+    }
+
+    // 1. Complete the systematic pass (0..K-1) uninterrupted; once done, re-send missed
+    //    blocks with an in-flight cooldown so stale feedback never rewinds the stream.
+    if (this.wantedRound === r.index && this.wanted.length && r.seed >= r.K && r.blocks) {
+      var minGap = Math.max(6, this.batchSize * 2);
+      var cool = Math.max(minGap, Math.min(32, Math.ceil(r.K * 0.12)));
+      var chosen = -1;
+      for (var tries = 0; tries < this.wanted.length; tries++) {
+        var w = this.wanted[tries];
+        if (w >= 0 && w < r.K) {
+          var lastSent = this.wantedSentAt.get(w);
+          if (lastSent === undefined || (this.frameIndex - lastSent) >= cool) {
+            chosen = w;
+            break;
+          }
+        }
+      }
+      // If all wanted blocks are still inside cooldown, pick the oldest-sent block
+      // if it was sent >= minGap frames ago; otherwise fall through to emit a parity symbol.
+      if (chosen < 0) {
+        var oldestW = -1, oldestFrame = Infinity;
+        for (var wi = 0; wi < this.wanted.length; wi++) {
+          var cand = this.wanted[wi];
+          if (cand >= 0 && cand < r.K) {
+            var ls = this.wantedSentAt.get(cand);
+            var fAt = ls === undefined ? -1 : ls;
+            if (fAt < oldestFrame) { oldestFrame = fAt; oldestW = cand; }
+          }
+        }
+        if (oldestW >= 0 && (this.frameIndex - oldestFrame) >= minGap) {
+          chosen = oldestW;
+        }
+      }
+      if (chosen >= 0) {
+        this.wantedSentAt.set(chosen, this.frameIndex);
+        r.emitted++;
+        this.frameIndex++;
+        return this._wrapFrame(encodeBlock(this.streamId, r.index, r.K, chosen, r.blocks[chosen]));
+      }
     }
 
     var seed = r.seed++;
     var data;
     if (seed < r.K) {
       data = r.blocks[seed];
+      this.wantedSentAt.set(seed, this.frameIndex);
     } else {
       var idx = symbolIndices(seed, r.index, r.K);
       data = new Uint8Array(r.blockSize);
@@ -520,18 +835,47 @@
     }
     r.emitted++;
     this.frameIndex++;
-    return encodeBlock(this.streamId, r.index, r.K, seed, data);
+    return this._wrapFrame(encodeBlock(this.streamId, r.index, r.K, seed, data));
+  };
+
+  /** Emit N frames at once for multi-QR spatial multiplexing (e.g. 2x1 or 2x2). */
+  Transmission.prototype.nextBatch = function (count) {
+    this.batchSize = Math.max(1, count);
+    var out = [];
+    for (var i = 0; i < count; i++) out.push(this.nextFrame());
+    return out;
   };
 
   /** Feedback from the receiver: leave finished rounds, revisit missing ones. */
   Transmission.prototype.applyFeedback = function (fb) {
     if (!fb) return null;
-    if (typeof fb.doneMask === 'number') this.doneMask = fb.doneMask;
+    this.hasFeedback = true;
+    if (fb.totalRounds > 0 || fb.doneMask > 0 || (Array.isArray(fb.doneRounds) && fb.doneRounds.length > 0)) {
+      this.peerHasFile = true;
+    }
     var n = this.rounds.length;
-    if (this.doneMask === ((1 << n) - 1)) return 'done';
+    if (typeof fb.doneMask === 'number') {
+      this.doneMask = fb.doneMask;
+      for (var b = 0; b < 30 && b < n; b++) {
+        if (fb.doneMask & (1 << b)) this.doneSet.add(b);
+      }
+    }
+    if (Array.isArray(fb.doneRounds)) {
+      for (var j = 0; j < fb.doneRounds.length; j++) {
+        var dr = fb.doneRounds[j];
+        if (dr >= 0 && dr < n) this.doneSet.add(dr);
+      }
+    }
+    // Free source blocks for completed rounds on large transfers
+    var self = this;
+    this.doneSet.forEach(function (idx) {
+      var rr = self.rounds[idx];
+      if (rr && rr.blocks) rr.blocks = null;
+    });
+    if (this.doneSet.size >= n || (n <= 30 && this.doneMask === ((1 << n) - 1))) return 'done';
 
     // current round finished -> move on immediately, no oversending
-    if (this.doneMask & (1 << this.roundIndex)) {
+    if (this.isRoundDone(this.roundIndex)) {
       var nxt = this.nextRound();
       if (nxt !== this.roundIndex) { this.enterRound(nxt); return 'advance'; }
       return null;
@@ -539,12 +883,19 @@
     // receiver is behind us -> go back and top that round up
     var target = fb.roundIndex;
     if (typeof target === 'number' && target >= 0 && target < n &&
-        target !== this.roundIndex && !(this.doneMask & (1 << target))) {
+        target !== this.roundIndex && !this.isRoundDone(target)) {
       this.enterRound(target);
       this.setWanted(target, fb.miss);
       return 'jump';
     }
-    if (fb.roundIndex === this.roundIndex && fb.miss) this.setWanted(fb.roundIndex, fb.miss);
+    if (fb.roundIndex === this.roundIndex && fb.miss) {
+      this.setWanted(fb.roundIndex, fb.miss);
+      var curR = this.current();
+      if (fb.miss.length === 0 && curR && curR.emitted >= 4 && !this.queue.length) {
+        this.queue.push({ kind: 'round', round: this.roundIndex });
+        if (!this.peerHasFile) this.queue.push({ kind: 'file' });
+      }
+    }
     return null;
   };
 
@@ -555,16 +906,14 @@
    */
   Transmission.prototype.setWanted = function (round, list) {
     if (typeof round !== 'number' || !Array.isArray(list) || !list.length) {
-      this.wanted = []; this.wantedRound = -1; return;
+      this.wanted = []; return;
     }
-    if (round === this.wantedRound && list.length === this.wanted.length) {
-      var same = true;
-      for (var i = 0; i < list.length; i++) if (list[i] !== this.wanted[i]) { same = false; break; }
-      if (same) return;
+    if (round !== this.wantedRound) {
+      this.wantedAt = 0;
+      this.wantedSentAt.clear();
     }
     this.wanted = list.slice(0, 200);
     this.wantedRound = round;
-    this.wantedAt = 0;
   };
 
   Transmission.prototype.adapt = function (finishedRound, redundancy) {
@@ -572,10 +921,11 @@
     if (!r) return;
     var bs = r.blockSize, ecc = r.ecc;
     if (redundancy <= 1.12) {
-      bs = Math.min(700, bs + 100);
+      var maxBs = Math.max(1800, this.opts.blockSize || 1800);
+      bs = Math.min(maxBs, bs + 100);
       ecc = ECC_ORDER[Math.max(0, ECC_ORDER.indexOf(ecc) - 1)];
     } else if (redundancy >= 1.6) {
-      bs = Math.max(200, bs - 100);
+      bs = Math.max(200, Math.round((bs * 0.8) / 50) * 50);
       ecc = ECC_ORDER[Math.min(3, ECC_ORDER.indexOf(ecc) + 1)];
     }
     this.opts.blockSize = bs;
@@ -772,7 +1122,8 @@
   };
 
   // ── ReceiverSession ─────────────────────────────────────────────────────
-  function ReceiverSession() {
+  function ReceiverSession(opts) {
+    opts = opts || {};
     this.streamId = null;
     this.fileMeta = null;
     this.totalRounds = 0;
@@ -780,12 +1131,21 @@
     this.completed = false;
     this.symbols = 0;
     this.frames = 0;
+    this.macKey = opts.macKey || null;
+    this.authRejected = 0;
+    this.crcRejected = 0;
   }
+
+  ReceiverSession.prototype.setMacKey = function (macKey) {
+    this.macKey = macKey || null;
+  };
 
   ReceiverSession.prototype.roundsDone = function () {
     var mask = 0;
     this.rounds.forEach(function (r) {
-      if (r.complete) mask |= (1 << r.index);
+      // Bits only for rounds 0..29: JS shifts wrap at 32, so round 33 would
+      // otherwise alias round 1. Higher rounds travel in doneRounds[].
+      if (r.complete && r.index < 30) mask |= (1 << r.index);
     });
     return mask;
   };
@@ -794,6 +1154,12 @@
     var c = 0;
     this.rounds.forEach(function (r) { if (r.complete) c++; });
     return c;
+  };
+
+  ReceiverSession.prototype.doneRoundsList = function () {
+    var out = [];
+    this.rounds.forEach(function (r) { if (r.complete) out.push(r.index); });
+    return out;
   };
 
   ReceiverSession.prototype.roundAt = function (index, K, blockSize) {
@@ -813,8 +1179,9 @@
   ReceiverSession.prototype.ingest = function (bytes) {
     this.frames++;
     if (this.completed) return { status: 'done' };
-    var f = decodeFrame(bytes);
-    if (!f) return { status: 'bad' };
+    var f = decodeFrame(bytes, this.macKey);
+    if (!f) { this.crcRejected++; return { status: 'bad' }; }
+    if (f.type === 'auth-fail') { this.authRejected++; return { status: 'auth-fail' }; }
 
     if (this.streamId === null) {
       this.streamId = f.streamId;
@@ -868,7 +1235,7 @@
           if (res) return res;
         }
       }
-      return { status: 'block', round: r.index, progress: r.dec.count / r.K, known: r.dec.count };
+      return { status: 'block', round: r.index, seed: f.seed, K: f.K, progress: r.dec.count / r.K, known: r.dec.count };
     }
     return { status: 'bad' };
   };
@@ -884,6 +1251,8 @@
     }
     r.complete = true;
     r.payload = payload;
+    r.dec.recovered = null;
+    r.dec.pending = [];
     if (this._allDone()) return { status: 'complete' };
     return { status: 'round-complete', round: r.index, done: this.doneCount(), total: this.totalRounds };
   };
@@ -936,24 +1305,41 @@
     var data = this.assemble();
     if (!data) return { error: 'Not all rounds received yet' };
     var flags = this.fileMeta ? this.fileMeta.flags : 0;
+    var meta = this.fileMeta;
 
     if (flags & 2) {
       if (!password) return { needPassword: true };
-      try { data = await decryptBytes(data, password, this.streamId); }
-      catch (e) { return { error: e.message }; }
+      try {
+        var salt = meta && meta.salt ? meta.salt : undefined;
+        var keys = await deriveKey(password, this.streamId, salt);
+        this.macKey = keys.macKey;
+        data = await decryptWithKey(data, keys.aesKey);
+        if (meta && meta.encMeta) {
+          var decMeta = await decryptWithKey(meta.encMeta, keys.aesKey);
+          var unpacked = unpackMeta(decMeta);
+          meta = {
+            ...meta,
+            origSize: unpacked.origSize,
+            payloadCrc: unpacked.payloadCrc,
+            name: unpacked.name,
+            mime: unpacked.mime,
+          };
+          this.fileMeta = meta;
+        }
+      } catch (e) { return { error: e.message }; }
     }
     if (flags & 1) {
       try { data = inflateBytes(data); }
       catch (e) { return { error: 'Decompression failed' }; }
     }
-    if (this.fileMeta && crc32(data) !== this.fileMeta.payloadCrc) {
+    if (meta && meta.payloadCrc !== undefined && crc32(data) !== meta.payloadCrc) {
       return { error: 'Checksum mismatch — data is corrupt' };
     }
     this.completed = true;
     this.result = {
       data: data,
-      name: (this.fileMeta && this.fileMeta.name) || 'received.bin',
-      mime: (this.fileMeta && this.fileMeta.mime) || 'application/octet-stream',
+      name: (meta && meta.name) || 'received.bin',
+      mime: (meta && meta.mime) || 'application/octet-stream',
     };
     return this.result;
   };
@@ -967,14 +1353,17 @@
     this.result = null;
     this.symbols = 0;
     this.frames = 0;
+    this.authRejected = 0;
+    this.crcRejected = 0;
   };
 
   // ── rate controller (pure, unit-testable) ───────────────────────────────
   function RateController(cfg) {
     cfg = cfg || {};
-    this.min = cfg.min || 60;
-    this.max = cfg.max || 500;
-    this.start = cfg.start || 140;
+    this.min = cfg.min || 40;
+    this.max = cfg.max || 180;
+    this.start = cfg.start || 90;
+    this.step = cfg.step || 1.4;
     this.interval = this.start;
     this.up = 0;
     this.down = 0;
@@ -983,24 +1372,23 @@
   }
   /**
    * ratio = unique symbols decoded per second / frames shown per second.
-   * < 0.85 means frames are being missed -> slow down.
-   * > 0.97 means everything is landing -> speed up.
-   * Multiplicative both ways so a deep cut recovers as fast as it happened.
+   * < 0.72 for 3 consecutive polls means frames are genuinely being missed -> slow down.
+   * > 0.90 for 2 consecutive polls means link is clean -> speed up.
    */
   RateController.prototype.update = function (ratio) {
     if (!isFinite(ratio) || ratio <= 0 || ratio > 1.5) return this.interval;
-    if (ratio < 0.85) {
+    if (ratio < 0.72) {
       this.up++; this.down = 0;
-      if (this.up >= 2) {
-        this.interval = Math.min(this.max, Math.round(this.interval * 1.5));
+      if (this.up >= 3) {
+        this.interval = Math.min(this.max, Math.round(this.interval * this.step));
         this.up = 0; this.fastUp = 0; this.fastDown++;
       }
       return this.interval;
     }
-    if (ratio > 0.97) {
+    if (ratio > 0.90) {
       this.down++; this.up = 0;
       if (this.down >= 2) {
-        this.interval = Math.max(this.min, Math.round(this.interval / 1.5));
+        this.interval = Math.max(this.min, Math.round(this.interval / this.step));
         this.down = 0; this.fastDown = 0; this.fastUp++;
       }
       return this.interval;
@@ -1013,11 +1401,13 @@
   };
 
   return {
-    VER, T_FILE, T_BLOCK, T_ROUND,
+    VER, VER_AUTH, T_FILE, T_BLOCK, T_ROUND,
     crc32, base45Encode, base45Decode,
+    sha256, hmacSha256, randomBytes, randomU32,
     splitmix32, degreeCdf, symbolIndices, xorInto,
-    encodeFileManifest, encodeRoundManifest, encodeBlock, decodeFrame,
-    deflateBytes, inflateBytes, encryptBytes, decryptBytes,
+    encodeFileManifest, encodeEncryptedFileManifest, encodeRoundManifest, encodeBlock, decodeFrame,
+    packMeta, unpackMeta, signFrame,
+    deflateBytes, inflateBytes, deriveKey, encryptBytes, decryptBytes,
     Transmission, ReceiverSession, RoundDecoder, RateController,
     pickRounds, ECC_ORDER,
     setGaussian: function (on) { useGaussian = !!on; },

@@ -14,16 +14,19 @@
   .pulse-dot { animation: pulse 1.5s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
   .wrap:fullscreen { background:#fff; display:flex; align-items:center; justify-content:center; padding:0; }
-  .wrap:fullscreen canvas { width:100vmin !important; height:100vmin !important; max-width:none !important; }
+  .wrap:fullscreen canvas { max-width:96vw !important; max-height:96vh !important; width:auto !important; height:auto !important; }
 </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased">
 <div id="app" v-cloak class="min-h-screen">
-  <div class="mx-auto max-w-3xl p-4 sm:p-6 flex flex-col gap-4">
+  <div class="mx-auto max-w-4xl p-4 sm:p-6 flex flex-col gap-4">
 
     <header class="flex items-center justify-between">
       <h1 class="text-xl sm:text-2xl font-semibold">QR File Sender</h1>
-      <span class="text-xs text-slate-500">fountain + feedback · v5</span>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-slate-500">turbo · {{ settings.gridMode }} · stable</span>
+        <a href="logs.html" target="_blank" class="rounded-md bg-slate-800 hover:bg-slate-700 px-2.5 py-1 text-slate-300">Logs ↗</a>
+      </div>
     </header>
 
     <div class="rounded-2xl border-2 border-dashed border-slate-700 hover:border-sky-500 transition-colors p-4 text-center cursor-pointer"
@@ -34,7 +37,7 @@
     </div>
 
     <div ref="qrWrap" class="wrap rounded-2xl bg-white p-3 flex items-center justify-center">
-      <canvas ref="qrCanvas" class="w-full h-auto max-w-[560px] aspect-square"></canvas>
+      <canvas ref="qrCanvas" class="w-full h-auto" :class="settings.gridMode === '2x1' ? 'max-w-[880px]' : 'max-w-[560px]'"></canvas>
     </div>
 
     <p v-if="qrError" class="text-sm text-rose-400 -mt-2">{{ qrError }}</p>
@@ -91,6 +94,10 @@
           <input type="checkbox" v-model="autoAdapt" class="accent-sky-500" />
           <span class="text-slate-400">auto-adapt</span>
         </label>
+        <label class="flex items-center gap-2 select-none cursor-pointer">
+          <input type="checkbox" v-model="airGapOnly" class="accent-emerald-500" />
+          <span class="text-slate-400">true air-gap (no WiFi)</span>
+        </label>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 tabnum text-slate-500">
         <span>decoded <span class="text-slate-200">{{ fbDecodeRate.toFixed(1) }}</span>/s</span>
@@ -118,14 +125,31 @@
       <div class="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <label class="flex flex-col gap-1">
           <span class="text-slate-400">Bytes per QR — <span class="tabnum text-slate-200">{{ settings.blockSize }} B</span></span>
-          <input type="range" min="200" max="900" step="50" v-model.number="settings.blockSize" @change="rebuild" />
+          <input type="range" min="200" max="1400" step="50" v-model.number="settings.blockSize" @change="rebuild" />
           <span class="text-[10px] text-slate-500">Bigger = fewer QR codes, harder to scan at a distance.</span>
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-slate-400">Frames per second — <span class="tabnum text-slate-200">{{ (1000/settings.intervalMs).toFixed(1) }}</span></span>
-          <input type="range" min="60" max="500" step="20" v-model.number="settings.intervalMs"
+          <span class="text-slate-400">Refresh rate — <span class="tabnum text-slate-200">{{ (1000/settings.intervalMs).toFixed(1) }} fps</span></span>
+          <input type="range" min="33" max="500" step="10" v-model.number="settings.intervalMs"
                  :disabled="autoAdapt && playing" />
-          <span class="text-[10px] text-slate-500">Start slow on a phone, then let auto-adapt push it.</span>
+          <span class="text-[10px] text-slate-500">Auto-adapt pushes up to 30 fps (33 ms) when camera keeps up.</span>
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-slate-400">Spatial Multiplexing (QRs per frame)</span>
+          <select v-model="settings.gridMode" @change="rebuild"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2">
+            <option value="1x1">1×1 — 1 cell (best for small/distant phones)</option>
+            <option value="2x1">2×1 — 2 cells side-by-side (2× speed, 16:9)</option>
+            <option value="2x2">2×2 — 4 cells grid (4× speed, close range)</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-slate-400">Color Multiplexing (channels per cell)</span>
+          <select v-model="settings.colorMode" @change="rebuild"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2">
+            <option value="mono">Monochrome (1× — reliable, works on all phones)</option>
+            <option value="rgb">RGB 3-Channel (3× — experimental, matte screens)</option>
+          </select>
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-slate-400">Error correction</span>
@@ -176,14 +200,21 @@ createApp({
 
     const fbStatus = ref('waiting'), fbAge = ref(0), fbDecodeRate = ref(0);
     const fbGoodput = ref(0), fbSymbols = ref(0), fbDoneCount = ref(0), roundPct = ref(0);
-    const autoAdapt = ref(true), lastAdaptLog = ref('');
+    const autoAdapt = ref(true), airGapOnly = ref(false), lastAdaptLog = ref('');
 
-    const settings = reactive({ blockSize: 500, ecc: 'M', intervalMs: 140, compress: true, password: '' });
-    const intervalMs = ref(140);
+    const settings = reactive({ blockSize: 650, ecc: 'L', intervalMs: 75, gridMode: '2x1', colorMode: 'mono', compress: true, password: '' });
+    const intervalMs = ref(75);
+    const gridDims = computed(() => {
+      const cells = settings.gridMode === '2x1' ? { cols: 2, rows: 1, cells: 2 }
+        : settings.gridMode === '2x2' ? { cols: 2, rows: 2, cells: 4 }
+        : { cols: 1, rows: 1, cells: 1 };
+      const ch = settings.colorMode === 'rgb' ? 3 : 1;
+      return { ...cells, channels: ch, count: cells.cells * ch };
+    });
 
     let tx = null, bytes = null, name = '', timer = null, fbTimer = null;
     let playing_since = 0, fpsMark = 0, fpsCount = 0;
-    let lastDone = 0, ctl = null, adaptAt = 0, nextAt = 0;
+    let lastDone = 0, lastDoneCount = 0, ctl = null, adaptAt = 0, nextAt = 0;
     const verCache = { key: '', version: 0, modules: 0 };
     const rt = reactive({ lastRecv: 0 });
 
@@ -229,7 +260,8 @@ createApp({
       clearTimeout(timer);
       qrError.value = ''; ready.value = false;
       framesShown.value = 0; shown = 0; fbSymbols.value = 0; fbDoneCount.value = 0;
-      lastDone = 0; rt.lastRecv = 0;
+      lastDone = 0; lastDoneCount = 0; rt.lastRecv = 0;
+      preRendered = null;
       intervalMs.value = settings.intervalMs;
       verCache.key = '';
 
@@ -252,12 +284,12 @@ createApp({
       status.value = tx.txSize !== tx.origSize
         ? `${fmt(tx.origSize)} → ${fmt(tx.txSize)} on the wire · ${tx.rounds.length} round(s)`
         : `${fmt(tx.origSize)} · ${tx.rounds.length} round(s)`;
-      drawFrame(tx.nextFrame());   // show the first QR immediately
+      drawBatch(tx.nextBatch(gridDims.value.count));   // show the first QR(s) immediately
       if (wasPlaying) play();
     }
 
     function flagsNote() {
-      lastAdaptLog.value = 'AES-GCM 256 + PBKDF2 600k — phone must type the same password';
+      lastAdaptLog.value = 'AES-256-GCM + Encrypted Manifest + Per-Frame HMAC-SHA256';
     }
 
     function syncRound() {
@@ -289,33 +321,91 @@ createApp({
       return verCache;
     }
 
-    // ── rendering ────────────────────────────────────────────────────────
-    function drawFrame(raw) {
-      if (!qrCanvas.value) return;
-      try {
-        const text = QSC.base45Encode(raw);
-        const r = tx.current();
-        const v = ensureVersion(r);
+    // ── rendering (ImageData 32-bit fast path + Multi-QR + RGB 3x + lookahead)
+    let imgBuf = null, imgU32 = null, imgW = 0, imgH = 0;
+    let imgBuf2 = null, imgU32_2 = null;
+    let preRendered = null, preRenderTimer = null;
+
+    function buildGridImageData(rawList, useBackBuf) {
+      const { cols, rows, cells, channels } = gridDims.value;
+      const r = tx.current();
+      const v = ensureVersion(r);
+      const qrs = [];
+      let n = 0;
+      for (let i = 0; i < rawList.length; i++) {
+        const text = QSC.base45Encode(rawList[i]);
         const qr = qrcode(v.version, r.ecc);
         qr.addData(text, 'Alphanumeric');
         qr.make();
-        const n = qr.getModuleCount();
-        const quiet = 4, total = n + 2 * quiet;
-        const c = qrCanvas.value;
-        const dpr = window.devicePixelRatio || 1;
-        const cssSize = c.clientWidth || 560;
-        const px = Math.max(total, Math.round(cssSize * dpr));
-        const scale = Math.max(1, Math.floor(px / total));
-        const size = total * scale;
-        if (c.width !== size) { c.width = size; c.height = size; }
-        const g = c.getContext('2d');
-        g.fillStyle = '#fff'; g.fillRect(0, 0, size, size);
-        g.fillStyle = '#000';
-        for (let row = 0; row < n; row++) {
-          for (let col = 0; col < n; col++) {
-            if (qr.isDark(row, col)) g.fillRect((col + quiet) * scale, (row + quiet) * scale, scale, scale);
+        n = qr.getModuleCount();
+        qrs.push(qr);
+      }
+      const quiet = 4, cellMods = n + 2 * quiet;
+      const c = qrCanvas.value;
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = c.clientWidth || (cols === 2 ? 840 : 560);
+      const pxW = Math.max(cellMods * cols, Math.round(cssW * dpr));
+      const scale = Math.max(1, Math.floor(pxW / (cellMods * cols)));
+      const cellPx = cellMods * scale;
+      const w = cellPx * cols, h = cellPx * rows;
+      if (!imgBuf || imgW !== w || imgH !== h) {
+        const g = c.getContext('2d', { alpha: false });
+        imgBuf = g.createImageData(w, h);
+        imgU32 = new Uint32Array(imgBuf.data.buffer);
+        imgBuf2 = g.createImageData(w, h);
+        imgU32_2 = new Uint32Array(imgBuf2.data.buffer);
+        imgW = w; imgH = h;
+      }
+      const targetBuf = useBackBuf ? imgBuf2 : imgBuf;
+      const u32 = useBackBuf ? imgU32_2 : imgU32;
+      u32.fill(0xFFFFFFFF);
+
+      for (let cellIdx = 0; cellIdx < cells; cellIdx++) {
+        const gx = (cellIdx % cols) * cellPx;
+        const gy = Math.floor(cellIdx / cols) * cellPx;
+        if (channels === 3) {
+          const qrR = qrs[cellIdx * 3], qrG = qrs[cellIdx * 3 + 1], qrB = qrs[cellIdx * 3 + 2];
+          for (let row = 0; row < n; row++) {
+            const y0 = gy + (row + quiet) * scale;
+            for (let col = 0; col < n; col++) {
+              const rBit = qrR.isDark(row, col) ? 0 : 0x000000FF;
+              const gBit = qrG.isDark(row, col) ? 0 : 0x0000FF00;
+              const bBit = qrB.isDark(row, col) ? 0 : 0x00FF0000;
+              const col32 = (0xFF000000 | rBit | gBit | bBit) >>> 0;
+              if (col32 === 0xFFFFFFFF) continue;
+              const x0 = gx + (col + quiet) * scale;
+              for (let dy = 0; dy < scale; dy++) {
+                const base = (y0 + dy) * w + x0;
+                u32.fill(col32, base, base + scale);
+              }
+            }
+          }
+        } else {
+          const qr = qrs[cellIdx];
+          for (let row = 0; row < n; row++) {
+            const y0 = gy + (row + quiet) * scale;
+            for (let col = 0; col < n; col++) {
+              if (!qr.isDark(row, col)) continue;
+              const x0 = gx + (col + quiet) * scale;
+              for (let dy = 0; dy < scale; dy++) {
+                const base = (y0 + dy) * w + x0;
+                u32.fill(0xFF000000, base, base + scale);
+              }
+            }
           }
         }
+      }
+      return { imgBuf: targetBuf, w, h };
+    }
+
+    function drawBatch(rawList) {
+      if (!qrCanvas.value) return;
+      try {
+        const { imgBuf: buf, w, h } = buildGridImageData(rawList, false);
+        const c = qrCanvas.value;
+        if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+        const g = c.getContext('2d', { alpha: false });
+        g.putImageData(buf, 0, 0);
         qrError.value = '';
       } catch (err) {
         qrError.value = 'QR render failed: ' + err.message;
@@ -323,13 +413,33 @@ createApp({
       }
     }
 
+    function schedulePreRender() {
+      if (preRenderTimer) clearTimeout(preRenderTimer);
+      preRenderTimer = setTimeout(() => {
+        preRenderTimer = null;
+        if (!playing.value || !tx) return;
+        try {
+          const count = gridDims.value.count;
+          preRendered = { count, ...buildGridImageData(tx.nextBatch(count), true) };
+        } catch (e) { preRendered = null; }
+      }, 0);
+    }
+
     // ── playback ─────────────────────────────────────────────────────────
     function pump() {
       if (!playing.value) return;
-      const raw = tx.nextFrame();
-      drawFrame(raw);
-      shown++; framesShown.value = shown;
+      const count = gridDims.value.count;
+      if (preRendered && preRendered.count === count) {
+        const c = qrCanvas.value;
+        if (c.width !== preRendered.w || c.height !== preRendered.h) { c.width = preRendered.w; c.height = preRendered.h; }
+        c.getContext('2d', { alpha: false }).putImageData(preRendered.imgBuf, 0, 0);
+        preRendered = null;
+      } else {
+        drawBatch(tx.nextBatch(count));
+      }
+      shown += count; framesShown.value = shown;
       syncRound();
+      schedulePreRender();
       fpsCount++;
       const now = performance.now();
       if (now - fpsMark >= 1000) { fps.value = fpsCount * 1000 / (now - fpsMark); fpsCount = 0; fpsMark = now; }
@@ -346,14 +456,17 @@ createApp({
         playing_since = performance.now();
         fpsMark = performance.now(); fpsCount = 0;
         nextAt = performance.now();
-        ctl = new QSC.RateController({ start: intervalMs.value, min: 60, max: 500 });
+        ctl = new QSC.RateController({ start: intervalMs.value, min: 40, max: 180 });
         pump();
-        startFeedback();
+        if (!airGapOnly.value) startFeedback();
+        else fbStatus.value = 'off (air-gap)';
       }
     }
     function pause() {
       playing.value = false;
       clearTimeout(timer); timer = null;
+      if (preRenderTimer) { clearTimeout(preRenderTimer); preRenderTimer = null; }
+      preRendered = null;
       stopFeedback();
     }
     async function restart() { if (bytes) await rebuild(); }
@@ -365,7 +478,7 @@ createApp({
     }
 
     // ── feedback ─────────────────────────────────────────────────────────
-    function startFeedback() { stopFeedback(); fbTimer = setInterval(poll, 200); poll(); }
+    function startFeedback() { stopFeedback(); fbTimer = setInterval(poll, 65); poll(); }
     function stopFeedback() { if (fbTimer) { clearInterval(fbTimer); fbTimer = null; } }
 
     async function poll() {
@@ -392,15 +505,26 @@ createApp({
 
         if (autoAdapt.value) adapt(fb, mask);
 
-        const act = tx.applyFeedback({ doneMask: mask, roundIndex: Number(fb.roundIndex), miss: fb.miss });
+        const act = tx.applyFeedback({
+          doneMask: mask,
+          doneRounds: fb.doneRounds,
+          totalRounds: Number(fb.totalRounds) || 0,
+          roundIndex: Number(fb.roundIndex),
+          miss: fb.miss,
+        });
         if (act === 'done') finish();
         else if (act) {
+          preRendered = null;
           syncRound();
           lastAdaptLog.value = act === 'jump'
             ? 'phone still needs round ' + (tx.roundIndex + 1) + ' — going back'
             : 'round done — moving on';
         }
-        if (mask !== lastDone) { lastDone = mask; syncRound(); }
+        if (mask !== lastDone || fbDoneCount.value !== lastDoneCount) {
+          lastDone = mask;
+          lastDoneCount = fbDoneCount.value;
+          syncRound();
+        }
       } catch (e) {
         fbStatus.value = 'error';
       }
@@ -410,30 +534,39 @@ createApp({
       const now = performance.now();
       if (now - playing_since < 2000) return;
 
-      // 1. frame rate: one sample per feedback (200 ms)
-      const sendRate = 1000 / intervalMs.value;
-      if (fbDecodeRate.value > 0 && sendRate > 0) {
+      // 1. frame rate: one sample per feedback (120 ms), scaled by QRs per refresh
+      // Only adapt once phone has actually started decoding symbols, and skip slowdown
+      // during the end-of-round repair tail (>80%) where duplicate symbols are normal.
+      if (fbSymbols.value < 4) return;
+      const sendRate = (1000 / intervalMs.value) * gridDims.value.count;
+      const effectiveRate = Math.max(fbDecodeRate.value, Number(fb.opticalRate) || 0);
+      const rProg = Number(fb.roundProgress) || 0;
+      if (effectiveRate > 0 && sendRate > 0 && (rProg <= 0.80 || effectiveRate >= sendRate * 0.88)) {
         const before = intervalMs.value;
-        ctl.update(fbDecodeRate.value / sendRate);
+        ctl.update(effectiveRate / sendRate);
         if (ctl.interval !== before) {
           intervalMs.value = ctl.interval;
           lastAdaptLog.value = 'rate ' + before + '→' + ctl.interval + 'ms (ratio ' +
-            (fbDecodeRate.value / sendRate).toFixed(2) + ')';
+            (effectiveRate / sendRate).toFixed(2) + ')';
         }
       }
 
-      // 2. density: how many frames did the last finished round cost?
+      // 2. density: decouple FPS mismatch from true optical loss
       if (now - adaptAt < 1500) return;
       adaptAt = now;
+      const optLoss = sendRate > 0 ? 1 - Math.min(1, effectiveRate / sendRate) : 0;
       for (const r of tx.rounds) {
-        if (r.K && (mask & (1 << r.index)) && !r._counted) {
+        if (r.K && tx.isRoundDone(r.index) && !r._counted) {
           r._counted = true;
           const eff = Math.max(1, r.emitted) / r.K;
           const bs0 = r.blockSize, ecc0 = r.ecc;
-          tx.adapt(r.index, eff);
+          // Only shrink density if optical loss is genuinely high even at moderate FPS
+          if (eff <= 1.12 || (optLoss > 0.35 && intervalMs.value >= 160)) {
+            tx.adapt(r.index, eff <= 1.12 ? eff : 1.7);
+          }
           if (tx.opts.blockSize !== bs0 || tx.opts.ecc !== ecc0) {
-            lastAdaptLog.value = 'density: round ' + (r.index + 1) + ' took ' + eff.toFixed(2) +
-              '× → ' + tx.opts.blockSize + 'B/' + tx.opts.ecc;
+            lastAdaptLog.value = 'density: round ' + (r.index + 1) + ' (' + (optLoss * 100).toFixed(0) +
+              '% loss) → ' + tx.opts.blockSize + 'B/' + tx.opts.ecc;
           }
         }
       }
@@ -462,7 +595,7 @@ createApp({
       currentRound, totalRounds, totalK, currentK, currentBlockSize, currentEcc,
       roundFrames, framesShown, estimatedFrames, qrVersion, qrModules, fps,
       fbStatus, fbAge, fbDecodeRate, fbGoodput, fbSymbols, fbDoneCount, roundPct,
-      autoAdapt, lastAdaptLog, settings, intervalMs, overallPct, etaText,
+      autoAdapt, airGapOnly, lastAdaptLog, settings, intervalMs, overallPct, etaText,
       onFileInput, onDrop, play, pause, restart, fullscreen, fmt,
     };
   },

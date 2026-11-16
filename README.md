@@ -1,116 +1,60 @@
 # QR-Stream
 
-Send a file from a PC screen to a phone camera using only QR codes.
-The file never travels over the network; only a tiny feedback channel does.
+Send any file from a PC screen to a phone camera using only QR codes.
+The file never touches the network; only a tiny `/feedback` control channel does (and true air-gap open-loop mode works with zero Wi-Fi).
+
+## Features
+
+- **Base45 + Alphanumeric QR Encoding (RFC 9285):** Carries ~29% more payload per QR than Base64 + byte mode.
+- **Closed-Loop Hybrid Fountain + GF(2) Solver:** LT codes (peeling + bit-packed GF(2) Gaussian elimination fallback) paired with targeted single-block tail retransmission.
+- **Spatial & Color Multiplexing:** `1×1`, `2×1` *(default)*, and `2×2` grid layouts, plus optional 3-channel RGB multiplexing and a 32-bit `Uint32Array` `ImageData` pre-renderer.
+- **Zero-Copy Receiver + 3-Worker `zbar` Pool:** Uses hardware `BarcodeDetector(<video>)` when available (`0 ms` canvas readback) with a 3-worker QR-only `zbar.wasm` fallback pool.
+- **Authenticated Encryption:** Optional password protection with PBKDF2-HMAC-SHA256, HKDF key separation, AES-256-GCM payload + encrypted manifest, and per-frame 64-bit HMAC-SHA256 (`VER_AUTH = 0x85`) to reject poisoned/spoofed frames.
+- **Multi-MB & 100+ MB Scaling:** Supports up to 1,024 rounds via `doneRounds[]` + 30-bit `doneMask`, freeing completed round buffers continuously.
+- **Live Telemetry Dashboard (`logs.html`):** Real-time scan FPS, decode latency, seed timeline, and session export.
 
 ## Run
 
 ```bash
-python make_cert.py     # once: creates cert.pem / key.pem
+python make_cert.py     # once: creates self-signed cert.pem / key.pem
 python serve.py
 ```
 
 Then open:
 
-- PC: `https://localhost:8443/sender.html` — click **Advanced → Proceed** once (self-signed cert).
-- Phone: `https://<the LAN IP printed by serve.py>:8443/receiver.html` — same one-time warning, then **Start receiver**.
+- **Sender (PC):** `https://localhost:8443/sender.html` — accept the one-time self-signed certificate prompt (**Advanced → Proceed**).
+- **Receiver (Phone):** `https://<LAN IP printed by serve.py>:8443/receiver.html` — accept the warning once, tap **Start receiver**, and tap the QR preview to lock focus.
+- **Diagnostics (`logs.html`):** `https://localhost:8443/logs.html`
 
-Everything is served from this folder. No internet needed.
-
-### Camera focus (the biggest real-world speed factor)
-
-Continuous autofocus hunts between the bright screen and the darker room, so the
-QR goes soft and frames stop decoding. On the phone:
-
-- Tap the QR on the preview once — the camera focuses at that point and the lens
-  **stays there** (amber box, "· locked"). Tap again anywhere to refocus. It no
-  longer drops back to hunting autofocus, which was the whole problem.
-- If no frame decodes for 2.5 s the receiver refocuses the centre by itself.
-- **`−` / `+` zoom** (top-left of the preview) crops into the sensor so the code
-  gets more pixels per module. Zoom is remembered between runs.
-- The small line under the preview shows the resolution the phone actually gave
-  you (e.g. `1920×1080`) and the current zoom.
-- Hold the phone ~20–30 cm away, fill the preview with the code, and use
-  **torch** when the room is dim.
-
-Measured with a synthetic camera (1280 px scan width, 12 fps stream, one QR
-filling 32 % of the frame):
-
-| Lens state | QR decoded per second |
-|---|---|
-| sharp | 10.7 |
-| 2 px of defocus | 1.2 |
-
-Defocus costs ~89 % of throughput — far more than coding, protocol or frame
-rate. That is why focus lock matters more than any setting on the PC.
-
-## How it works
-
-```
-file → compress → encrypt (optional) → split into ~48 KB rounds
-     → LT fountain symbols → base45 → QR (alphanumeric mode) → screen
-                                                                  ↓ camera
-phone ← zbar decode ← base45 ← LT peel + CRC ← QR frame ←────────┘
-```
-
-The phone POSTs a 250 ms progress report (which rounds/blocks are missing) and
-the sender re-sends exactly those blocks, so a good frame is never wasted.
-`/feedback` is the only network traffic; it carries no file data.
-
-## Numbers (100 KB file, 500 B blocks, 12 runs per cell)
-
-| Link loss | QR frames shown | Symbols sent | Coding overhead |
-|-----------|-----------------|--------------|-----------------|
-| 0 %       | 225             | 207          | 1.000×          |
-| 20 %      | 281             | 207          | 1.000×          |
-| 50 %      | 441             | 207          | 1.000×          |
-
-| File  | QR frames | 8 fps  | 12 fps | 16 fps |
-|-------|-----------|--------|--------|--------|
-| 100 KB| 236       | 30 s   | 20 s   | 15 s   |
-| 1 MB  | 2374      | 4.9 min| 3.3 min| 2.5 min|
-
-base45 + QR alphanumeric mode carries **29 % more file bytes per QR** than
-base64 + byte mode: 100 KB needs 159 QRs instead of 205.
-
-### A 252 KB photo, 0 % loss, ~9 decodes/s
-
-| Bytes per QR | QR frames | Time |
-|--------------|-----------|------|
-| 500 B (default) | ~529 | ~59 s |
-| 700 B | ~379 | ~42 s |
-| 900 B | ~295 | ~33 s |
-
-Denser QRs are bigger and therefore more blur-sensitive: only raise the slider
-on the PC once the picture is crisp and the counter stays above ~8/s.
-
-## Test
+## Test & Benchmarks
 
 ```bash
-node tests/codec.test.js   # 33 checks: framing, crypto, fountains, lossy transfers
-node tests/sim.js          # the experiment tables above
+node tests/codec.test.js       # 40 checks: framing, HMAC/AES crypto, fountains, >35 rounds, lossy transfers
+node tests/benchmark_paper.js  # full evaluation suite -> paper/results.json
+node tests/sim_rounds.js       # closed-loop multi-QR simulator (1 MB - 10 MB)
+node tests/bench_speed.js      # spatial & RGB throughput scaling benchmark
+python tests/plot_paper.py     # generates 5 figures in paper/figures/
 ```
+
+## Evaluation Highlights
+
+| Figure | Summary |
+|---|---|
+| ![Loss Resilience](paper/figures/fig1_frames_vs_loss.png) | Closed-loop targeted tail repair completes transfers in `1.000×–1.039×` symbols across `0%–50%` optical loss. |
+| ![Poisoning Defense](paper/figures/fig2_poisoning_attack.png) | Per-frame HMAC-SHA256 achieves `100%` completion and `0` corrupted rounds even at `20%` adversarial frame injection. |
+| ![AIMD Rate Control](paper/figures/fig3_aimd_adaptation.png) | AIMD controller backs off during motion/defocus bursts and recovers smoothly when focus returns. |
+| ![GF(2) Latency](paper/figures/fig4_gf2_latency.png) | Bit-packed GF(2) elimination solves `K=200` stalled rounds in `< 10 ms`. |
+| ![Throughput Scaling](paper/figures/fig5_throughput_multiplexing.png) | Multiplexing scales `1 MB` throughput from `4.5 KB/s` (`1×1 Mono`) to `15.4 KB/s` (`2×1 Mono`), `46.7 KB/s` (`2×2 Mono`), and `103.9 KB/s` (`2×2 RGB`). |
 
 ## Files
 
 | Path | What |
-|------|------|
-| `codec.js` | wire format, LT fountain, CRC, AES-GCM, compression, rate control — shared by both pages and the tests |
-| `sender.html` | PC UI: file picker, QR renderer, feedback client, adaptation |
-| `receiver.html` | phone UI: camera, zbar worker, decoder, feedback |
-| `serve.py` | static files + `/feedback` + `/metrics` (HTTP/1.1 keep-alive) |
-| `vendor/` | pako, qrcode-generator, zbar wasm, vue, tailwind — all local |
-| `tests/` | codec tests + experiment runner |
-| `legacy/` | the old v2 implementation, kept for reference |
-| `metrics.jsonl` | one JSON line per finished transfer (created on demand) |
-
-## Honest limits
-
-- The feedback channel needs both devices on the same WiFi. The *file* is
-  air-gapped; the *control* channel is not. A visual back-channel (phone shows
-  an ack QR) is the natural next step.
-- A phone camera typically decodes 6–12 QR/s, not 16; the rate controller finds
-  the real ceiling in the first few seconds.
-- Gaussian elimination is a safety net, not a win: measured 0–2 % fewer frames.
-- LT degree distribution is fixed at the sender; only rate, block size and ECC
-  adapt.
+|---|---|
+| `codec.js` | Wire format, LT fountain, GF(2) solver, CRC-32, PBKDF2/HKDF/HMAC-SHA256, AES-GCM, rate control |
+| `sender.html` | PC UI: file picker, 32-bit `ImageData` multi-QR renderer, feedback client, AIMD adaptation |
+| `receiver.html` | Phone UI: camera + tap-to-focus lock, zero-copy `BarcodeDetector` / 3-worker `zbar`, decoder |
+| `logs.html` | Real-time telemetry & seed timeline dashboard |
+| `serve.py` | Threaded HTTPS server with per-thread TLS handshake, HTTP→HTTPS redirect, `/feedback`, `/telemetry`, `/metrics` |
+| `vendor/` | Local `pako`, `qrcode-generator`, `zbar.wasm`, `vue`, `tailwind` (zero internet required) |
+| `tests/` | Unit tests (`codec.test.js`), channel simulators (`sim.js`, `sim_rounds.js`), benchmarks & plotters |
+| `paper/` | Evaluation results (`results.json`), paper outline (`PAPER_BLUEPRINT.md`), and PNG figures (`figures/`) |
