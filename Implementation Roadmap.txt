@@ -1,0 +1,27 @@
+6. Implementation Roadmap
+Phase 1: Core Adaptive Loop (2-3 weeks)
+Add feedback POST from receiver after each decode
+
+Add feedback GET polling from sender every second
+
+Implement basic AIMD controller for intervalMs
+
+Test end-to-end with your existing serve.py
+
+Phase 2: Parameter Expansion (2-3 weeks)
+Add block size adaptation
+
+Add ECC level adaptation
+
+Add degree distribution adaptation
+
+Build experiment harness (automated runs, metrics collection)
+
+Phase 3: Evaluation (3-4 weeks)
+Run experiments across distance, motion, lighting conditions
+
+Compare against fixed-rate baselines
+
+Collect and plot results
+
+Write paper

@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QR File Receiver</title>
+<script src="vendor/tailwind.js"></script>
+<script src="vendor/pako.min.js"></script>
+<style>
+  [v-cloak] { display: none; }
+  .tabnum { font-variant-numeric: tabular-nums; }
+  .pulse-dot { animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+<div id="app" v-cloak class="min-h-screen">
+  <div class="mx-auto max-w-xl p-4 flex flex-col gap-4">
+
+    <header class="flex items-center justify-between">
+      <h1 class="text-xl font-semibold">QR File Receiver</h1>
+      <span class="text-xs text-slate-500">{{ engineLabel }}</span>
+    </header>
+
+    <div class="relative rounded-2xl overflow-hidden bg-black aspect-video" @click="tapFocus">
+      <video ref="videoEl" class="w-full h-full object-cover" muted autoplay playsinline></video>
+      <div v-if="!running" class="absolute inset-0 flex items-center justify-center bg-black/60">
+        <span class="text-slate-300 text-sm text-center px-4">{{ cameraError || 'Camera idle' }}</span>
+      </div>
+      <div v-if="reticle.show" class="absolute w-16 h-16 -ml-8 -mt-8 rounded-lg border-2 border-amber-400 pointer-events-none"
+           :style="{ left: reticle.x + 'px', top: reticle.y + 'px' }"></div>
+      <div v-if="running" class="absolute top-2 right-2 rounded-md bg-black/60 px-2 py-1 text-xs tabnum text-slate-300">
+        {{ scanFps }} scan/s
+      </div>
+      <div v-if="running" class="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-2 py-1 text-[11px] text-slate-300 pointer-events-none whitespace-nowrap">
+        Tap the QR to focus{{ focusLocked ? ' · locked' : '' }}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="rounded-xl bg-slate-900 border border-slate-800 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-slate-500">QR read</div>
+        <div class="tabnum text-lg">{{ symbols }}</div>
+      </div>
+      <div class="rounded-xl bg-slate-900 border border-slate-800 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-slate-500">Speed</div>
+        <div class="tabnum text-lg">{{ decodeRate.toFixed(1) }}<span class="text-xs text-slate-500">/s</span></div>
+      </div>
+      <div class="rounded-xl bg-slate-900 border border-slate-800 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-slate-500">Data</div>
+        <div class="tabnum text-lg">{{ fmt(goodput) }}<span class="text-xs text-slate-500">/s</span></div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-3">
+      <div class="flex items-center justify-between gap-3 text-sm">
+        <span class="truncate text-slate-300">{{ fileName || 'Waiting for a QR code…' }}</span>
+        <span class="tabnum text-slate-400 shrink-0">rounds {{ roundsComplete }} / {{ totalRounds || '?' }}</span>
+      </div>
+      <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div class="h-full bg-sky-500 transition-[width] duration-150" :style="{ width: pct + '%' }"></div>
+      </div>
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-xs text-slate-400">{{ status }}</p>
+        <p class="text-xs text-sky-400 tabnum shrink-0">{{ etaText }}</p>
+      </div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 tabnum">
+        <span>blk <span class="text-slate-300">{{ blockSize || '—' }}</span></span>
+        <span>ecc <span class="text-slate-300">{{ ecc || '—' }}</span></span>
+        <span>K=<span class="text-slate-300">{{ currentK || '—' }}</span></span>
+        <span>round <span class="text-slate-300">{{ currentRoundPct }}%</span></span>
+      </div>
+      <p v-if="lastScan" class="text-[10px] text-slate-600 font-mono truncate">{{ lastScan }}</p>
+    </div>
+
+    <div v-if="needPassword" class="rounded-2xl bg-slate-900 border border-amber-700/60 p-3 flex flex-col gap-2 text-sm">
+      <span class="text-amber-300">This file is encrypted. Enter the password shown on the PC.</span>
+      <div class="flex gap-2">
+        <input v-model="password" type="password" @keyup.enter="submitPassword"
+               class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2" placeholder="password" />
+        <button @click="submitPassword" class="rounded-lg px-4 bg-sky-600 hover:bg-sky-500">Unlock</button>
+      </div>
+    </div>
+
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 flex flex-col gap-1 text-xs">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full"
+                :class="{ 'bg-emerald-400 pulse-dot': fbState === 'live',
+                          'bg-amber-400': fbState === 'idle',
+                          'bg-rose-500': fbState === 'error' }"></span>
+          <span class="text-slate-300">Feedback to PC: <span class="font-mono">{{ fbState }}</span>
+            <span v-if="fbSent" class="text-slate-500">· {{ fbSent }}</span></span>
+        </div>
+        <span class="tabnum text-slate-500">{{ fmt(receivedBytes) }} of {{ fmt(expectedBytes) }}</span>
+      </div>
+      <p v-if="fbLastError" class="text-[10px] font-mono text-rose-400 break-all">{{ fbLastError }}</p>
+    </div>
+
+    <div class="flex gap-2">
+      <button @click="running ? stop() : start()"
+        class="flex-1 rounded-xl px-4 py-3 font-medium"
+        :class="running ? 'bg-rose-600 hover:bg-rose-500' : 'bg-sky-600 hover:bg-sky-500'">
+        {{ running ? 'Stop' : 'Start receiver' }}
+      </button>
+      <button v-if="torchAvailable" @click="toggleTorch"
+        class="rounded-xl px-4 py-3"
+        :class="torchOn ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 hover:bg-slate-700'">Torch</button>
+      <button @click="reset" class="rounded-xl px-4 py-3 bg-slate-800 hover:bg-slate-700">Reset</button>
+    </div>
+
+    <p v-if="downloadUrl" class="text-xs text-center text-slate-500">
+      Saved. If it didn't start,
+      <a :href="downloadUrl" :download="fileName || 'received.bin'" class="text-sky-400 underline">tap here</a>.
+    </p>
+  </div>
+</div>
+
+<script src="vendor/vue.global.prod.js"></script>
+<script src="codec.js"></script>
+<script>
+const ZBAR_BASE = new URL('vendor/', location.href).href;
+
+const WORKER_SRC = `
+  const BASE = ${JSON.stringify(ZBAR_BASE)};
+  let z = null;
+  try { importScripts(BASE + 'zbar-index.js'); z = self.zbarWasm; }
+  catch (e) { self.postMessage({ type: 'error', error: 'import failed: ' + e }); }
+  if (!z) self.postMessage({ type: 'error', error: 'zbarWasm missing' });
+  else {
+    try { z.setModuleArgs({ locateFile: (p) => BASE + p }); } catch (e) {}
+    self.onmessage = async (ev) => {
+      const d = ev.data;
+      if (d.type === 'init') {
+        try {
+          await z.scanImageData(new ImageData(new Uint8ClampedArray(32 * 32 * 4), 32, 32));
+          self.postMessage({ type: 'ready' });
+        } catch (e) { self.postMessage({ type: 'error', error: String(e) }); }
+        return;
+      }
+      if (d.type === 'scan') {
+        try {
+          const img = new ImageData(new Uint8ClampedArray(d.buffer), d.width, d.height);
+          const syms = await z.scanImageData(img);
+          const texts = [];
+          for (const s of syms) { try { texts.push(s.decode()); } catch (e) {} }
+          self.postMessage({ type: 'result', id: d.id, texts });
+        } catch (e) {
+          self.postMessage({ type: 'result', id: d.id, texts: [], error: String(e) });
+        }
+      }
+    };
+  }
+`;
+
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount } = Vue;
+
+createApp({
+  setup() {
+    const videoEl = ref(null);
+    const running = ref(false);
+    const status = ref('Press Start, then point the camera at the PC screen.');
+    const fileName = ref(''), fileSize = ref(0);
+    const totalRounds = ref(0), roundsComplete = ref(0);
+    const currentRoundPct = ref(0), currentK = ref(0);
+    const blockSize = ref(0), ecc = ref('');
+    const symbols = ref(0), decodeRate = ref(0), goodput = ref(0);
+    const receivedBytes = ref(0), expectedBytes = ref(0);
+    const engineLabel = ref('loading…'), cameraError = ref('');
+    const torchAvailable = ref(false), torchOn = ref(false);
+    const focusLocked = ref(false);
+    const reticle = reactive({ show: false, x: 0, y: 0 });
+    const scanFps = ref(0), lastScan = ref('');
+    const downloadUrl = ref('');
+    const needPassword = ref(false), password = ref('');
+    const fbState = ref('idle'), fbSent = ref(0), fbLastError = ref('');
+
+    let session = new QSC.ReceiverSession();
+    let streamHex = null;
+    let stream = null, track = null;
+    let canvas = null, ctx = null;
+    let detector = null;
+    let worker = null, workerReady = false, workerSeq = 0;
+    const pending = new Map();
+    let rafId = 0, decoding = false, lastScanAt = 0;
+    let scanCount = 0, scanMark = 0;
+    let fbTimer = null;
+    let lastSym = 0, lastSymAt = 0, emaRate = 0;
+    let lastBytes = 0, runStart = 0;
+    let focusModes = [], lastSymbolAt = 0, lastFocusAt = 0;
+    const FEEDBACK_MS = 250;
+
+    const pct = computed(() => {
+      if (!totalRounds.value) return 0;
+      return Math.min(100, (roundsComplete.value / totalRounds.value) * 100 +
+        (currentRoundPct.value / 100) / Math.max(1, totalRounds.value) * 100);
+    });
+    const etaText = computed(() => {
+      const r = totalRounds.value - roundsComplete.value;
+      if (!r) return 'done';
+      if (!decodeRate.value || decodeRate.value < 0.2) return '';
+      const kPerRound = currentK.value || 1;
+      const left = r * kPerRound * (1 - currentRoundPct.value / 100);
+      const s = left / decodeRate.value;
+      return s < 60 ? Math.ceil(s) + 's left' : (s / 60).toFixed(1) + 'min left';
+    });
+
+    function fmt(b) {
+      if (b === 0) return '0 B';
+      if (!b) return '—';
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1048576).toFixed(2) + ' MB';
+    }
+
+    // ── decoders ─────────────────────────────────────────────────────────
+    async function setupEngine() {
+      if ('BarcodeDetector' in window) {
+        try {
+          const fmts = await window.BarcodeDetector.getSupportedFormats();
+          if (fmts.includes('qr_code')) {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            engineLabel.value = 'native decoder';
+            return;
+          }
+        } catch (e) {}
+      }
+      if (await startWorker()) { engineLabel.value = 'zbar worker'; return; }
+      try {
+        await loadScript(ZBAR_BASE + 'zbar-index.js');
+        if (window.zbarWasm) {
+          try { window.zbarWasm.setModuleArgs({ locateFile: (p) => ZBAR_BASE + p }); } catch (e) {}
+          engineLabel.value = 'zbar (main thread)';
+          return;
+        }
+      } catch (e) {}
+      engineLabel.value = 'no QR decoder available';
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('failed ' + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    function startWorker() {
+      return new Promise((resolve) => {
+        let url = null;
+        try {
+          url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' }));
+          worker = new Worker(url);
+        } catch (e) { resolve(false); return; }
+        if (url) URL.revokeObjectURL(url);
+
+        let settled = false;
+        const timer = setTimeout(() => finish(false), 8000);
+        function finish(ok) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (!ok && worker) { try { worker.terminate(); } catch (e) {} worker = null; }
+          resolve(ok);
+        }
+        worker.onmessage = (e) => {
+          const d = e.data;
+          if (d.type === 'ready') { workerReady = true; finish(true); }
+          else if (d.type === 'error') finish(false);
+          else if (d.type === 'result') {
+            const cb = pending.get(d.id);
+            if (cb) { pending.delete(d.id); cb(d.texts || []); }
+          }
+        };
+        worker.onerror = () => finish(false);
+        worker.postMessage({ type: 'init' });
+      });
+    }
+
+    function workerScan(img) {
+      return new Promise((resolve) => {
+        const id = ++workerSeq;
+        pending.set(id, resolve);
+        const buf = img.data.buffer;
+        worker.postMessage({ type: 'scan', id, buffer: buf, width: img.width, height: img.height }, [buf]);
+        setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve([]); } }, 4000);
+      });
+    }
+
+    // ── camera ───────────────────────────────────────────────────────────
+    async function openCamera() {
+      cameraError.value = '';
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      });
+      videoEl.value.srcObject = stream;
+      await videoEl.value.play();
+      track = stream.getVideoTracks()[0];
+      // Focus is a bonus: a browser that cannot report capabilities must still give us a camera.
+      let caps = {};
+      try { caps = (track.getCapabilities && track.getCapabilities()) || {}; } catch (e) {}
+      torchAvailable.value = !!caps.torch;
+      focusModes = Array.isArray(caps.focusMode) ? caps.focusMode : [];
+      try {
+        if (focusModes.includes('continuous')) {
+          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        }
+      } catch (e) {}
+      if (!videoEl.value.videoWidth) {
+        await new Promise((r) => { videoEl.value.onloadedmetadata = r; setTimeout(r, 1500); });
+      }
+    }
+
+    function closeCamera() {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = null; track = null;
+      torchOn.value = false; torchAvailable.value = false;
+      focusModes = []; focusLocked.value = false;
+    }
+
+    async function toggleTorch() {
+      if (!track) return;
+      try {
+        torchOn.value = !torchOn.value;
+        await track.applyConstraints({ advanced: [{ torch: torchOn.value }] });
+      } catch (e) { torchOn.value = false; }
+    }
+
+    /**
+     * Continuous autofocus hunts between the bright screen and the room, so the
+     * QR keeps going soft. Ask for one focus sweep pinned to a point instead,
+     * then hand control back so a moved phone still recovers.
+     */
+    async function applyFocus(mode, poi) {
+      if (!track || !focusModes.includes(mode)) return false;
+      const c = poi ? { focusMode: mode, pointsOfInterest: [poi] } : { focusMode: mode };
+      try { await track.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; }
+    }
+
+    function pulseFocus(poi) {
+      lastFocusAt = performance.now();
+      applyFocus('single-shot', poi).then((ok) => {
+        focusLocked.value = ok;
+        if (ok) setTimeout(() => applyFocus('continuous'), 1200);
+      });
+    }
+
+    function tapFocus(ev) {
+      if (!running.value) return;
+      const el = videoEl.value;
+      if (!el || !el.videoWidth) return;
+      const rect = el.getBoundingClientRect();
+      // the video is object-cover, so map the tap back into camera coordinates
+      const scale = Math.max(rect.width / el.videoWidth, rect.height / el.videoHeight);
+      const dispW = el.videoWidth * scale, dispH = el.videoHeight * scale;
+      const x = (ev.clientX - rect.left - (rect.width - dispW) / 2) / dispW;
+      const y = (ev.clientY - rect.top - (rect.height - dispH) / 2) / dispH;
+      reticle.x = ev.clientX - rect.left;
+      reticle.y = ev.clientY - rect.top;
+      reticle.show = true;
+      setTimeout(() => (reticle.show = false), 800);
+      pulseFocus({ x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) });
+    }
+
+    // ── scan loop ────────────────────────────────────────────────────────
+    function loop(ts) {
+      if (!running.value) return;
+      rafId = requestAnimationFrame(loop);
+      if (ts - scanMark >= 1000) { scanFps.value = scanCount; scanCount = 0; scanMark = ts; }
+      // nothing decoded for a while: the picture went soft, ask for a new lock
+      if (ts - lastSymbolAt > 2500 && ts - lastFocusAt > 2500 && focusModes.includes('single-shot')) {
+        pulseFocus({ x: 0.5, y: 0.5 });
+      }
+      if (decoding) return;
+      if (ts - lastScanAt < 30) return;      // ~30 scans/s ceiling
+      lastScanAt = ts;
+      scanOnce();
+    }
+
+    async function scanOnce() {
+      if (!running.value || decoding) return;
+      const v = videoEl.value;
+      if (!v || v.readyState < 2 || !v.videoWidth) return;
+      decoding = true;
+      try {
+        // Downscale: zbar on 1920×1080 is ~4x slower than 1280×720 for no gain.
+        const w0 = v.videoWidth, h0 = v.videoHeight;
+        const scale = Math.min(1, 1280 / w0);
+        const w = Math.round(w0 * scale), h = Math.round(h0 * scale);
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        ctx.drawImage(v, 0, 0, w, h);
+
+        let texts = [];
+        if (detector) {
+          const found = await detector.detect(canvas);
+          for (const f of found) texts.push(f.rawValue);
+        } else if (workerReady && worker) {
+          texts = await workerScan(ctx.getImageData(0, 0, w, h));
+        } else if (window.zbarWasm) {
+          const syms = await window.zbarWasm.scanImageData(ctx.getImageData(0, 0, w, h));
+          for (const s of syms) { try { texts.push(s.decode()); } catch (e) {} }
+        }
+        scanCount++;
+        for (const t of texts) handlePayload(t);
+      } catch (err) {
+      } finally {
+        decoding = false;
+      }
+    }
+
+    // ── ingest ───────────────────────────────────────────────────────────
+    function handlePayload(text) {
+      if (!text || text.length < 8) return;
+      lastScan.value = text.slice(0, 60);
+      let bytes;
+      try { bytes = QSC.base45Decode(text); } catch (e) { return; }
+
+      if (!streamHex) {
+        const f = QSC.decodeFrame(bytes);
+        if (!f) return;
+        streamHex = f.streamId.toString(16).toUpperCase().padStart(8, '0');
+      }
+
+      const res = session.ingest(bytes);
+      if (res.status === 'other-stream') { status.value = 'Another PC is on screen — keep pointing at yours'; return; }
+      if (res.status === 'bad' || res.status === 'done') return;
+      lastSymbolAt = performance.now();
+
+      symbols.value = session.symbols;
+
+      if (res.status === 'file' && session.fileMeta) {
+        fileName.value = session.fileMeta.name || 'received.bin';
+        fileSize.value = session.fileMeta.origSize || 0;
+        expectedBytes.value = session.fileMeta.txSize || session.fileMeta.origSize || 0;
+        totalRounds.value = session.fileMeta.totalRounds || totalRounds.value;
+        status.value = 'Receiving ' + fileName.value +
+          ((session.fileMeta.flags & 1) ? ' · compressed' : '') +
+          ((session.fileMeta.flags & 2) ? ' · encrypted' : '');
+      } else if (res.status === 'round') {
+        if (session.totalRounds) totalRounds.value = session.totalRounds;
+      } else if (res.status === 'round-complete') {
+        roundsComplete.value = res.done;
+        currentRoundPct.value = 0;
+        status.value = 'Round ' + (res.round + 1) + ' done · ' + res.done + '/' + res.total;
+      } else if (res.status === 'round-corrupt') {
+        status.value = 'Round ' + (res.round + 1) + ' checksum failed — rescanning it';
+      } else if (res.status === 'block') {
+        const r = session.rounds.get(res.round);
+        if (r) {
+          if (session.totalRounds) totalRounds.value = session.totalRounds;
+          currentK.value = r.K;
+          blockSize.value = r.blockSize;
+          if (r.ecc) ecc.value = r.ecc;
+          currentRoundPct.value = Math.round((r.dec.count / r.K) * 100);
+        }
+        roundsComplete.value = session.doneCount();
+      }
+
+      if (res.status === 'complete') {
+        roundsComplete.value = session.totalRounds || roundsComplete.value;
+        currentRoundPct.value = 100;
+        receivedBytes.value = bytesReceived();
+        complete();
+        return;
+      }
+      receivedBytes.value = bytesReceived();
+    }
+
+    function bytesReceived() {
+      let n = 0;
+      session.rounds.forEach((r) => { n += r.dec.count * r.blockSize; });
+      return n;
+    }
+
+    async function complete() {
+      status.value = 'All rounds received — checking checksum…';
+      const out = await session.finalize(password.value || undefined);
+      if (out.needPassword) { needPassword.value = true; status.value = 'Encrypted file: password needed'; return; }
+      if (out.error) { status.value = 'Could not finish: ' + out.error; return; }
+      needPassword.value = false;
+      save(out);
+    }
+
+    async function submitPassword() {
+      const out = await session.finalize(password.value);
+      if (out.error) { status.value = 'Could not finish: ' + out.error; return; }
+      if (out.needPassword) return;
+      needPassword.value = false;
+      save(out);
+    }
+
+    function save(out) {
+      const blob = new Blob([out.data], { type: out.mime || 'application/octet-stream' });
+      if (downloadUrl.value) URL.revokeObjectURL(downloadUrl.value);
+      downloadUrl.value = URL.createObjectURL(blob);
+      fileName.value = out.name || fileName.value;
+      const a = document.createElement('a');
+      a.href = downloadUrl.value;
+      a.download = out.name || 'received.bin';
+      document.body.appendChild(a); a.click(); a.remove();
+      status.value = '✓ Done — ' + fmt(out.data.length) + ' saved';
+      stop();
+      report(true);
+      logRun(out);
+    }
+
+    /** One record per completed transfer, for the paper's results table. */
+    function logRun(out) {
+      if (!streamHex || !runStart) return;
+      const body = {
+        type: 'transfer',
+        session: streamHex,
+        bytes: out.data.length,
+        txBytes: session.fileMeta ? session.fileMeta.txSize : out.data.length,
+        rounds: session.totalRounds,
+        blockSize: blockSize.value,
+        ecc: ecc.value,
+        symbols: session.symbols,
+        ms: Math.round(performance.now() - runStart),
+      };
+      try {
+        fetch('/metrics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (e) { /* metrics are optional */ }
+    }
+
+    // ── feedback ─────────────────────────────────────────────────────────
+    function startFeedback() { stopFeedback(); fbTimer = setInterval(report, FEEDBACK_MS); }
+    function stopFeedback() { if (fbTimer) { clearInterval(fbTimer); fbTimer = null; } }
+
+    async function report(final) {
+      if (!streamHex) return;
+      const now = performance.now();
+      const dt = Math.max(0.2, (now - lastSymAt) / 1000);
+      const inst = (session.symbols - lastSym) / dt;
+      emaRate = emaRate ? emaRate * 0.6 + inst * 0.4 : inst;
+      lastSym = session.symbols;
+      lastSymAt = now;
+      decodeRate.value = Math.max(0, emaRate);
+
+      const got = bytesReceived();
+      goodput.value = Math.max(0, (got - lastBytes) / dt);
+      lastBytes = got;
+      receivedBytes.value = got;
+
+      let roundIndex = 0, roundProgress = 0;
+      const mask = session.roundsDone();
+      const n = session.totalRounds || 0;
+      for (let i = 0; i < n; i++) {
+        const r = session.rounds.get(i);
+        if (!r || !r.complete) { roundIndex = i; roundProgress = r ? r.dec.count / r.K : 0; break; }
+      }
+      let miss = session.missing(roundIndex);
+
+      const payload = {
+        session: streamHex,
+        decodeRate: +decodeRate.value.toFixed(2),
+        goodput: Math.round(goodput.value),
+        roundIndex: roundIndex,
+        roundProgress: +roundProgress.toFixed(3),
+        roundsComplete: session.doneCount(),
+        totalRounds: n,
+        doneMask: mask,
+        miss: miss,
+        symbols: session.symbols,
+        blockSize: blockSize.value,
+        ecc: ecc.value,
+        fileComplete: !!(session.completed || (n > 0 && session.doneCount() === n)),
+        timestamp: Date.now(),
+      };
+      try {
+        const res = await fetch('/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) { fbSent.value++; fbState.value = 'live'; fbLastError.value = ''; }
+        else {
+          fbState.value = 'error';
+          let b = '';
+          try { b = await res.text(); } catch (e) {}
+          fbLastError.value = 'HTTP ' + res.status + (b ? ' · ' + b.slice(0, 120) : '');
+        }
+      } catch (e) {
+        fbState.value = 'error';
+        fbLastError.value = (e && (e.message || e.name)) || String(e);
+      }
+    }
+
+    // ── controls ─────────────────────────────────────────────────────────
+    async function start() {
+      if (running.value) return;
+      try { if (!stream) await openCamera(); }
+      catch (e) { cameraError.value = 'Camera unavailable: ' + (e.message || e.name); return; }
+      running.value = true;
+      status.value = 'Scanning…';
+      scanCount = 0; scanMark = performance.now(); lastScanAt = 0;
+      runStart = performance.now();
+      lastSymbolAt = performance.now();
+      lastSymAt = performance.now(); lastSym = session.symbols;
+      pulseFocus({ x: 0.5, y: 0.5 });
+      rafId = requestAnimationFrame(loop);
+      startFeedback();
+    }
+    function stop() { running.value = false; cancelAnimationFrame(rafId); stopFeedback(); }
+
+    function reset() {
+      stop(); closeCamera();
+      session = new QSC.ReceiverSession();
+      streamHex = null; emaRate = 0; lastBytes = 0; lastSym = 0; runStart = 0;
+      focusLocked.value = false; lastFocusAt = 0; lastSymbolAt = 0;
+      symbols.value = 0; decodeRate.value = 0; goodput.value = 0;
+      receivedBytes.value = 0; expectedBytes.value = 0;
+      roundsComplete.value = 0; totalRounds.value = 0;
+      currentRoundPct.value = 0; currentK.value = 0;
+      blockSize.value = 0; ecc.value = '';
+      fileName.value = ''; fileSize.value = 0;
+      lastScan.value = ''; scanFps.value = 0; fbSent.value = 0;
+      fbState.value = 'idle'; fbLastError.value = '';
+      needPassword.value = false; password.value = '';
+      if (downloadUrl.value) { URL.revokeObjectURL(downloadUrl.value); downloadUrl.value = ''; }
+      status.value = 'Press Start, then point the camera at the PC screen.';
+    }
+
+    onMounted(async () => {
+      canvas = document.createElement('canvas');
+      ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
+      await setupEngine();
+    });
+    onBeforeUnmount(() => { stop(); closeCamera(); });
+
+    return {
+      videoEl, running, status, fileName, fileSize, totalRounds, roundsComplete,
+      currentRoundPct, currentK, blockSize, ecc, symbols, decodeRate, goodput,
+      receivedBytes, expectedBytes, engineLabel, cameraError, torchAvailable, torchOn,
+      scanFps, lastScan, downloadUrl, needPassword, password, pct, etaText,
+      fbState, fbSent, fbLastError, reticle, focusLocked,
+      start, stop, reset, toggleTorch, submitPassword, tapFocus, fmt,
+    };
+  },
+}).mount('#app');
+</script>
+</body>
+</html>

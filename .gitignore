@@ -1,0 +1,7 @@
+# local TLS material - generate your own with python make_cert.py
+*.pem
+
+# run artifacts
+metrics.jsonl
+__pycache__/
+*.pyc
