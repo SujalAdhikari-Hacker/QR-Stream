@@ -32,8 +32,13 @@
       <div v-if="running" class="absolute top-2 right-2 rounded-md bg-black/60 px-2 py-1 text-xs tabnum text-slate-300">
         {{ scanFps }} scan/s
       </div>
+      <div v-if="running && zoomMax > 1" class="absolute top-2 left-2 flex items-center rounded-md bg-black/60 text-xs">
+        <button class="px-2 py-1 text-slate-200" @click.stop="nudgeZoom(-1)">−</button>
+        <span class="tabnum text-slate-300 w-9 text-center">{{ zoomValue.toFixed(1) }}×</span>
+        <button class="px-2 py-1 text-slate-200" @click.stop="nudgeZoom(1)">+</button>
+      </div>
       <div v-if="running" class="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-2 py-1 text-[11px] text-slate-300 pointer-events-none whitespace-nowrap">
-        Tap the QR to focus{{ focusLocked ? ' · locked' : '' }}
+        {{ videoSize }} · Tap the QR to focus{{ focusLocked ? ' · locked' : '' }}
       </div>
     </div>
 
@@ -170,6 +175,8 @@ createApp({
     const torchAvailable = ref(false), torchOn = ref(false);
     const focusLocked = ref(false);
     const reticle = reactive({ show: false, x: 0, y: 0 });
+    const zoomMax = ref(1), zoomValue = ref(1), videoSize = ref('');
+    let zoomMin = 1, zoomStep = 0.5;
     const scanFps = ref(0), lastScan = ref('');
     const downloadUrl = ref('');
     const needPassword = ref(false), password = ref('');
@@ -307,9 +314,21 @@ createApp({
           await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
         }
       } catch (e) {}
+      // Optical/digital zoom is how the native camera app gets pixels per module:
+      // same subject, fewer sensor pixels wasted on the room around it.
+      const z = caps.zoom;
+      if (z && typeof z.max === 'number' && z.max > (z.min || 1)) {
+        zoomMin = z.min || 1;
+        zoomStep = z.step || Math.max(0.1, (z.max - zoomMin) / 8);
+        zoomMax.value = z.max;
+        let saved = 1;
+        try { saved = parseFloat(localStorage.getItem('qsc.zoom')) || 1; } catch (e) {}
+        await applyZoom(saved);
+      }
       if (!videoEl.value.videoWidth) {
         await new Promise((r) => { videoEl.value.onloadedmetadata = r; setTimeout(r, 1500); });
       }
+      videoSize.value = videoEl.value.videoWidth + '×' + videoEl.value.videoHeight;
     }
 
     function closeCamera() {
@@ -317,6 +336,8 @@ createApp({
       stream = null; track = null;
       torchOn.value = false; torchAvailable.value = false;
       focusModes = []; focusLocked.value = false;
+      zoomMax.value = 1; zoomValue.value = 1; zoomMin = 1; zoomStep = 0.5;
+      videoSize.value = '';
     }
 
     async function toggleTorch() {
@@ -338,12 +359,26 @@ createApp({
       try { await track.applyConstraints({ advanced: [c] }); return true; } catch (e) { return false; }
     }
 
+    async function applyZoom(v) {
+      if (!track) return;
+      const val = Math.min(zoomMax.value, Math.max(zoomMin, +v || zoomMin));
+      try {
+        await track.applyConstraints({ advanced: [{ zoom: val }] });
+        zoomValue.value = val;
+        try { localStorage.setItem('qsc.zoom', String(val)); } catch (e) {}
+      } catch (e) {}
+    }
+
+    function nudgeZoom(dir) { applyZoom(zoomValue.value + dir * zoomStep); }
+
+    /**
+     * A tap focuses once and then the lens stays put. Handing control back to
+     * continuous autofocus after a second is exactly what made the code go soft
+     * again: it hunts between the bright screen and the dark room.
+     */
     function pulseFocus(poi) {
       lastFocusAt = performance.now();
-      applyFocus('single-shot', poi).then((ok) => {
-        focusLocked.value = ok;
-        if (ok) setTimeout(() => applyFocus('continuous'), 1200);
-      });
+      applyFocus('single-shot', poi).then((ok) => { focusLocked.value = ok; });
     }
 
     function tapFocus(ev) {
@@ -640,6 +675,7 @@ createApp({
       receivedBytes, expectedBytes, engineLabel, cameraError, torchAvailable, torchOn,
       scanFps, lastScan, downloadUrl, needPassword, password, pct, etaText,
       fbState, fbSent, fbLastError, reticle, focusLocked,
+      zoomMax, zoomValue, videoSize, nudgeZoom,
       start, stop, reset, toggleTorch, submitPassword, tapFocus, fmt,
     };
   },

@@ -22,11 +22,27 @@ Everything is served from this folder. No internet needed.
 Continuous autofocus hunts between the bright screen and the darker room, so the
 QR goes soft and frames stop decoding. On the phone:
 
-- Tap the QR on the preview once — the camera focuses at that point and locks
-  (amber box). Tap again anywhere to refocus; "· locked" means the lock took.
+- Tap the QR on the preview once — the camera focuses at that point and the lens
+  **stays there** (amber box, "· locked"). Tap again anywhere to refocus. It no
+  longer drops back to hunting autofocus, which was the whole problem.
 - If no frame decodes for 2.5 s the receiver refocuses the centre by itself.
+- **`−` / `+` zoom** (top-left of the preview) crops into the sensor so the code
+  gets more pixels per module. Zoom is remembered between runs.
+- The small line under the preview shows the resolution the phone actually gave
+  you (e.g. `1920×1080`) and the current zoom.
 - Hold the phone ~20–30 cm away, fill the preview with the code, and use
   **torch** when the room is dim.
+
+Measured with a synthetic camera (1280 px scan width, 12 fps stream, one QR
+filling 32 % of the frame):
+
+| Lens state | QR decoded per second |
+|---|---|
+| sharp | 10.7 |
+| 2 px of defocus | 1.2 |
+
+Defocus costs ~89 % of throughput — far more than coding, protocol or frame
+rate. That is why focus lock matters more than any setting on the PC.
 
 ## How it works
 
@@ -56,6 +72,17 @@ the sender re-sends exactly those blocks, so a good frame is never wasted.
 
 base45 + QR alphanumeric mode carries **29 % more file bytes per QR** than
 base64 + byte mode: 100 KB needs 159 QRs instead of 205.
+
+### A 252 KB photo, 0 % loss, ~9 decodes/s
+
+| Bytes per QR | QR frames | Time |
+|--------------|-----------|------|
+| 500 B (default) | ~529 | ~59 s |
+| 700 B | ~379 | ~42 s |
+| 900 B | ~295 | ~33 s |
+
+Denser QRs are bigger and therefore more blur-sensitive: only raise the slider
+on the PC once the picture is crisp and the counter stays above ~8/s.
 
 ## Test
 
