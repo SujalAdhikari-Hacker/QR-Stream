@@ -1,5 +1,17 @@
 {
-  "generatedAt": "2026-11-16T09:20:54.366Z",
+  "generatedAt": "2026-11-25T13:23:22.481Z",
+  "env": {
+    "nodeVersion": "v24.15.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "senderDefaults": {
+    "gridMode": "2x1",
+    "colorMode": "mono",
+    "blockSize": 650,
+    "ecc": "L",
+    "intervalMs": 75
+  },
   "exp1": [
     {
       "lossPct": 0,
@@ -7,9 +19,9 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 225,
-        "avgSymbols": 206,
-        "avgK": 206,
+        "avgFrames": 173,
+        "avgSymbols": 158,
+        "avgK": 158,
         "overhead": 1,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
@@ -18,9 +30,9 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 225,
-        "avgSymbols": 206,
-        "avgK": 206,
+        "avgFrames": 173,
+        "avgSymbols": 158,
+        "avgK": 158,
         "overhead": 1,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
@@ -29,9 +41,9 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 214,
-        "avgSymbols": 206,
-        "avgK": 206,
+        "avgFrames": 165,
+        "avgSymbols": 158,
+        "avgK": 158,
         "overhead": 1,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
@@ -43,10 +55,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 285.2,
-        "avgSymbols": 231,
-        "avgK": 206,
-        "overhead": 1.1213592233009708,
+        "avgFrames": 211.2,
+        "avgSymbols": 172.5,
+        "avgK": 158,
+        "overhead": 1.0917721518987342,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -54,10 +66,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 265.1,
-        "avgSymbols": 224,
-        "avgK": 206,
-        "overhead": 1.087378640776699,
+        "avgFrames": 208.2,
+        "avgSymbols": 170.6,
+        "avgK": 158,
+        "overhead": 1.079746835443038,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -65,10 +77,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 241.4,
-        "avgSymbols": 208.7,
-        "avgK": 206,
-        "overhead": 1.0131067961165048,
+        "avgFrames": 186.4,
+        "avgSymbols": 161.9,
+        "avgK": 158,
+        "overhead": 1.0246835443037974,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -79,10 +91,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 376.6,
-        "avgSymbols": 264.8,
-        "avgK": 206,
-        "overhead": 1.2854368932038835,
+        "avgFrames": 288.7,
+        "avgSymbols": 194.9,
+        "avgK": 158,
+        "overhead": 1.2335443037974683,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -90,10 +102,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 303.4,
-        "avgSymbols": 223.6,
-        "avgK": 206,
-        "overhead": 1.0854368932038836,
+        "avgFrames": 240.6,
+        "avgSymbols": 174.5,
+        "avgK": 158,
+        "overhead": 1.1044303797468353,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -101,10 +113,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 274.7,
-        "avgSymbols": 209,
-        "avgK": 206,
-        "overhead": 1.0145631067961165,
+        "avgFrames": 209.4,
+        "avgSymbols": 160.6,
+        "avgK": 158,
+        "overhead": 1.0164556962025317,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -115,10 +127,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 531.7,
-        "avgSymbols": 327.3,
-        "avgK": 206,
-        "overhead": 1.5888349514563107,
+        "avgFrames": 403.9,
+        "avgSymbols": 233.7,
+        "avgK": 158,
+        "overhead": 1.479113924050633,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -126,10 +138,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 358.1,
-        "avgSymbols": 227,
-        "avgK": 206,
-        "overhead": 1.1019417475728155,
+        "avgFrames": 268.4,
+        "avgSymbols": 170.3,
+        "avgK": 158,
+        "overhead": 1.0778481012658228,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -137,10 +149,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 310,
-        "avgSymbols": 209.7,
-        "avgK": 206,
-        "overhead": 1.0179611650485436,
+        "avgFrames": 238.4,
+        "avgSymbols": 161.8,
+        "avgK": 158,
+        "overhead": 1.0240506329113923,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -151,10 +163,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 807.8,
-        "avgSymbols": 417.4,
-        "avgK": 206,
-        "overhead": 2.0262135922330096,
+        "avgFrames": 538.9,
+        "avgSymbols": 275.3,
+        "avgK": 158,
+        "overhead": 1.7424050632911392,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -162,10 +174,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 413.7,
-        "avgSymbols": 224.2,
-        "avgK": 206,
-        "overhead": 1.0883495145631068,
+        "avgFrames": 323.6,
+        "avgSymbols": 173.3,
+        "avgK": 158,
+        "overhead": 1.0968354430379748,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -173,10 +185,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 364.6,
-        "avgSymbols": 211,
-        "avgK": 206,
-        "overhead": 1.0242718446601942,
+        "avgFrames": 285.3,
+        "avgSymbols": 163.1,
+        "avgK": 158,
+        "overhead": 1.0322784810126582,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -187,10 +199,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 1058.3,
-        "avgSymbols": 460.7,
-        "avgK": 206,
-        "overhead": 2.236407766990291,
+        "avgFrames": 802.6,
+        "avgSymbols": 341.8,
+        "avgK": 158,
+        "overhead": 2.1632911392405063,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -198,10 +210,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 478.2,
-        "avgSymbols": 220.9,
-        "avgK": 206,
-        "overhead": 1.0723300970873786,
+        "avgFrames": 387.7,
+        "avgSymbols": 173.7,
+        "avgK": 158,
+        "overhead": 1.099367088607595,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -209,10 +221,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 477,
-        "avgSymbols": 214.1,
-        "avgK": 206,
-        "overhead": 1.0393203883495146,
+        "avgFrames": 357.2,
+        "avgSymbols": 164.9,
+        "avgK": 158,
+        "overhead": 1.0436708860759494,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -225,10 +237,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 260.2,
-        "avgSymbols": 221,
-        "avgK": 206,
-        "overhead": 1.0728155339805825,
+        "avgFrames": 211.9,
+        "avgSymbols": 172.7,
+        "avgK": 158,
+        "overhead": 1.0930379746835444,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -236,10 +248,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 238.9,
-        "avgSymbols": 207.3,
-        "avgK": 206,
-        "overhead": 1.0063106796116505,
+        "avgFrames": 184.3,
+        "avgSymbols": 159,
+        "avgK": 158,
+        "overhead": 1.0063291139240507,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -250,10 +262,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 309.9,
-        "avgSymbols": 221.4,
-        "avgK": 206,
-        "overhead": 1.0747572815533981,
+        "avgFrames": 248.2,
+        "avgSymbols": 172.8,
+        "avgK": 158,
+        "overhead": 1.0936708860759494,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -261,10 +273,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 278,
-        "avgSymbols": 209.4,
-        "avgK": 206,
-        "overhead": 1.0165048543689321,
+        "avgFrames": 214.6,
+        "avgSymbols": 161.1,
+        "avgK": 158,
+        "overhead": 1.019620253164557,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -275,10 +287,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 335.7,
-        "avgSymbols": 221.4,
-        "avgK": 206,
-        "overhead": 1.0747572815533981,
+        "avgFrames": 264.6,
+        "avgSymbols": 175.5,
+        "avgK": 158,
+        "overhead": 1.110759493670886,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -286,10 +298,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 294.8,
-        "avgSymbols": 208.7,
-        "avgK": 206,
-        "overhead": 1.0131067961165048,
+        "avgFrames": 224.6,
+        "avgSymbols": 160.8,
+        "avgK": 158,
+        "overhead": 1.0177215189873419,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -300,10 +312,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 372.8,
-        "avgSymbols": 225.1,
-        "avgK": 206,
-        "overhead": 1.0927184466019417,
+        "avgFrames": 296.6,
+        "avgSymbols": 174.3,
+        "avgK": 158,
+        "overhead": 1.1031645569620254,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -311,10 +323,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 329,
-        "avgSymbols": 209.2,
-        "avgK": 206,
-        "overhead": 1.0155339805825243,
+        "avgFrames": 254.4,
+        "avgSymbols": 162.6,
+        "avgK": 158,
+        "overhead": 1.0291139240506328,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -327,10 +339,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 111.8,
-        "avgSymbols": 103.4,
-        "avgK": 103,
-        "overhead": 1.003883495145631,
+        "avgFrames": 86.1,
+        "avgSymbols": 79.3,
+        "avgK": 79,
+        "overhead": 1.0037974683544304,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       },
@@ -338,10 +350,10 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 111.8,
-        "avgSymbols": 103.4,
-        "avgK": 103,
-        "overhead": 1.003883495145631,
+        "avgFrames": 86.1,
+        "avgSymbols": 79.3,
+        "avgK": 79,
+        "overhead": 1.0037974683544304,
         "corruptRoundsPerTrial": 0,
         "authRejectedPerTrial": 0
       }
@@ -352,23 +364,23 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 212.7,
-        "avgSymbols": 196.5,
-        "avgK": 103,
-        "overhead": 1.9077669902912622,
-        "corruptRoundsPerTrial": 0.9,
+        "avgFrames": 147.1,
+        "avgSymbols": 135.4,
+        "avgK": 79,
+        "overhead": 1.7139240506329114,
+        "corruptRoundsPerTrial": 0.7,
         "authRejectedPerTrial": 0
       },
       "withAuth": {
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 113,
-        "avgSymbols": 103.7,
-        "avgK": 103,
-        "overhead": 1.0067961165048545,
+        "avgFrames": 87.8,
+        "avgSymbols": 80,
+        "avgK": 79,
+        "overhead": 1.0126582278481013,
         "corruptRoundsPerTrial": 0,
-        "authRejectedPerTrial": 1.2
+        "authRejectedPerTrial": 1
       }
     },
     {
@@ -377,48 +389,48 @@
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 2137.2,
-        "avgSymbols": 2033.8,
-        "avgK": 103,
-        "overhead": 19.745631067961163,
-        "corruptRoundsPerTrial": 18.6,
+        "avgFrames": 530.1,
+        "avgSymbols": 501,
+        "avgK": 79,
+        "overhead": 6.341772151898734,
+        "corruptRoundsPerTrial": 5.3,
         "authRejectedPerTrial": 0
       },
       "withAuth": {
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 113.7,
-        "avgSymbols": 104.2,
-        "avgK": 103,
-        "overhead": 1.0116504854368933,
+        "avgFrames": 86.9,
+        "avgSymbols": 79.1,
+        "avgK": 79,
+        "overhead": 1.0012658227848101,
         "corruptRoundsPerTrial": 0,
-        "authRejectedPerTrial": 5.6
+        "authRejectedPerTrial": 4.8
       }
     },
     {
       "injectPct": 10,
       "noAuth": {
-        "completed": 3,
+        "completed": 10,
         "trials": 10,
-        "completionRate": 0.3,
-        "avgFrames": 6477.333333333333,
-        "avgSymbols": 6321,
-        "avgK": 103,
-        "overhead": 61.36893203883495,
-        "corruptRoundsPerTrial": 149.4,
+        "completionRate": 1,
+        "avgFrames": 8337.8,
+        "avgSymbols": 8131.4,
+        "avgK": 79,
+        "overhead": 102.92911392405064,
+        "corruptRoundsPerTrial": 101.1,
         "authRejectedPerTrial": 0
       },
       "withAuth": {
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 112.8,
-        "avgSymbols": 103.7,
-        "avgK": 103,
-        "overhead": 1.0067961165048545,
+        "avgFrames": 86.6,
+        "avgSymbols": 79.1,
+        "avgK": 79,
+        "overhead": 1.0012658227848101,
         "corruptRoundsPerTrial": 0,
-        "authRejectedPerTrial": 10.7
+        "authRejectedPerTrial": 8.4
       }
     },
     {
@@ -431,1196 +443,1250 @@
         "avgSymbols": null,
         "avgK": null,
         "overhead": null,
-        "corruptRoundsPerTrial": 197.2,
+        "corruptRoundsPerTrial": 256.9,
         "authRejectedPerTrial": 0
       },
       "withAuth": {
         "completed": 10,
         "trials": 10,
         "completionRate": 1,
-        "avgFrames": 112.9,
-        "avgSymbols": 104.2,
-        "avgK": 103,
-        "overhead": 1.0116504854368933,
+        "avgFrames": 87.2,
+        "avgSymbols": 79.9,
+        "avgK": 79,
+        "overhead": 1.0113924050632912,
         "corruptRoundsPerTrial": 0,
-        "authRejectedPerTrial": 22.9
+        "authRejectedPerTrial": 17.5
       }
     }
   ],
   "exp4": {
-    "fixed10fps": {
-      "sent": 300,
-      "decoded": 206,
-      "wasted": 94,
-      "deliveryRatio": 0.687,
-      "goodputKBps": 3.35,
+    "fixed75ms": {
+      "sentRefreshes": 400,
+      "decodedRefreshes": 283,
+      "wastedRefreshes": 117,
+      "deliveryRatio": 0.708,
+      "goodputKBps": 11.98,
       "trace": [
         {
           "tSec": 0.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 0.6,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 0.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 1.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 1.5,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 1.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 2.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 2.4,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 2.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 3.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 3.6,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 3.9,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 4.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 4.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 10
         },
         {
           "tSec": 4.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 5.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 5.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 5.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 6.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 6.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 6.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 7.2,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 7.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 7.8,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 8.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 8.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 8.7,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 9.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 9.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 9.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 10.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 10.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 10.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 11.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 11.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 10
         },
         {
           "tSec": 11.7,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 12,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 12.3,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 12.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 12.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 6.67
         },
         {
           "tSec": 13.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 0
         },
         {
           "tSec": 13.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 13.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 0
         },
         {
           "tSec": 14.1,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 14.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
-        },
-        {
-          "tSec": 14.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
-        },
-        {
-          "tSec": 15,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
-          "tSec": 15.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "tSec": 14.7,
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 6.67
         },
         {
-          "tSec": 15.6,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "tSec": 15,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 0
         },
         {
+          "tSec": 15.3,
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 0
+        },
+        {
+          "tSec": 15.6,
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 6.67
+        },
+        {
           "tSec": 15.9,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 16.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
         },
         {
           "tSec": 16.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 0
         },
         {
           "tSec": 16.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 0
         },
         {
           "tSec": 17.1,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 17.4,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 17.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 0
-        },
-        {
-          "tSec": 18,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
-          "tSec": 18.3,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "tSec": 18,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 0
         },
         {
+          "tSec": 18.3,
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 3.33
+        },
+        {
           "tSec": 18.6,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 0
         },
         {
           "tSec": 18.9,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 0
         },
         {
           "tSec": 19.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 6.67
         },
         {
           "tSec": 19.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 6.67
         },
         {
           "tSec": 19.8,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 0
         },
         {
           "tSec": 20.1,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 3.33
         },
         {
           "tSec": 20.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 20.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 21,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 21.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 21.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 21.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 22.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 22.5,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 22.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 23.1,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 23.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 23.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 24,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 10
         },
         {
           "tSec": 24.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 24.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 24.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 10
         },
         {
           "tSec": 25.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 25.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 3.33
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 25.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 26.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 26.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 26.7,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 27,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 27.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 27.6,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 27.9,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 28.2,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 28.5,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 28.8,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 29.1,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 29.4,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 29.7,
-          "intervalMs": 100,
-          "sendFps": 10,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
           "tSec": 30,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 6.67
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         }
       ]
     },
-    "aimdAdaptive": {
-      "sent": 318,
-      "decoded": 213,
-      "wasted": 105,
-      "deliveryRatio": 0.67,
-      "goodputKBps": 3.47,
+    "adaptive": {
+      "sentRefreshes": 488,
+      "decodedRefreshes": 353,
+      "wastedRefreshes": 135,
+      "deliveryRatio": 0.723,
+      "goodputKBps": 14.94,
       "trace": [
         {
           "tSec": 0.3,
-          "intervalMs": 100,
-          "sendFps": 10,
-          "decodeFps": 10
+          "intervalMs": 75,
+          "sendFps": 13.33,
+          "decodeFps": 13.33
         },
         {
           "tSec": 0.6,
-          "intervalMs": 71,
-          "sendFps": 14.08,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 10
         },
         {
-          "tSec": 0.88,
-          "intervalMs": 71,
-          "sendFps": 14.08,
-          "decodeFps": 10.56
-        },
-        {
-          "tSec": 1.17,
-          "intervalMs": 71,
-          "sendFps": 14.08,
-          "decodeFps": 14.08
-        },
-        {
-          "tSec": 1.45,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 14.08
-        },
-        {
-          "tSec": 1.75,
-          "intervalMs": 60,
-          "sendFps": 16.67,
+          "tSec": 0.9,
+          "intervalMs": 75,
+          "sendFps": 13.33,
           "decodeFps": 13.33
         },
         {
-          "tSec": 2.05,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
-        },
-        {
-          "tSec": 2.35,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 3.33
-        },
-        {
-          "tSec": 2.65,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
-        },
-        {
-          "tSec": 2.95,
-          "intervalMs": 60,
-          "sendFps": 16.67,
+          "tSec": 1.2,
+          "intervalMs": 54,
+          "sendFps": 18.52,
           "decodeFps": 13.33
         },
         {
-          "tSec": 3.25,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 6.67
+          "tSec": 1.47,
+          "intervalMs": 54,
+          "sendFps": 18.52,
+          "decodeFps": 14.81
         },
         {
-          "tSec": 3.55,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 6.67
+          "tSec": 1.74,
+          "intervalMs": 54,
+          "sendFps": 18.52,
+          "decodeFps": 18.52
         },
         {
-          "tSec": 3.85,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 10
+          "tSec": 2.01,
+          "intervalMs": 54,
+          "sendFps": 18.52,
+          "decodeFps": 14.81
         },
         {
-          "tSec": 4.1,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 7.94
+          "tSec": 2.28,
+          "intervalMs": 54,
+          "sendFps": 18.52,
+          "decodeFps": 18.52
         },
         {
-          "tSec": 4.36,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 11.9
+          "tSec": 2.55,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 18.52
         },
         {
-          "tSec": 4.61,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 11.9
+          "tSec": 2.83,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 10.71
         },
         {
-          "tSec": 4.91,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
+          "tSec": 3.11,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 10.71
         },
         {
-          "tSec": 5.21,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 3.39,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 5.51,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
+          "tSec": 3.67,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 5.81,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
+          "tSec": 3.95,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 6.11,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 6.67
+          "tSec": 4.23,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 21.43
         },
         {
-          "tSec": 6.41,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 6.67
+          "tSec": 4.51,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 25
         },
         {
-          "tSec": 6.71,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 4.79,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 7.01,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 5.07,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 14.29
+        },
+        {
+          "tSec": 5.35,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
+        },
+        {
+          "tSec": 5.63,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
+        },
+        {
+          "tSec": 5.91,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
+        },
+        {
+          "tSec": 6.19,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
+        },
+        {
+          "tSec": 6.47,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
+        },
+        {
+          "tSec": 6.75,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
+        },
+        {
+          "tSec": 7.03,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
           "tSec": 7.31,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 7.61,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
+          "tSec": 7.59,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 7.91,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
+          "tSec": 7.87,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 8.21,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 8.15,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 8.51,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 8.43,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 8.81,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "tSec": 8.71,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 9.11,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 6.67
+          "tSec": 8.99,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 9.41,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
+          "tSec": 9.27,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 9.71,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 10
+          "tSec": 9.55,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 9.96,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 11.9
+          "tSec": 9.83,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 10.21,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 3.97
+          "tSec": 10.11,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 10.46,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 3.97
+          "tSec": 10.39,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 3.57
         },
         {
-          "tSec": 10.72,
-          "intervalMs": 84,
-          "sendFps": 11.9,
+          "tSec": 10.67,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 3.57
+        },
+        {
+          "tSec": 10.95,
+          "intervalMs": 56,
+          "sendFps": 17.86,
           "decodeFps": 0
         },
         {
-          "tSec": 10.97,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 3.97
-        },
-        {
-          "tSec": 11.32,
-          "intervalMs": 118,
-          "sendFps": 8.47,
+          "tSec": 11.23,
+          "intervalMs": 56,
+          "sendFps": 17.86,
           "decodeFps": 0
         },
         {
-          "tSec": 11.68,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
+          "tSec": 11.51,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 3.57
         },
         {
-          "tSec": 12.03,
-          "intervalMs": 118,
-          "sendFps": 8.47,
+          "tSec": 11.82,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 3.21
+        },
+        {
+          "tSec": 12.13,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 3.21
+        },
+        {
+          "tSec": 12.45,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 3.21
+        },
+        {
+          "tSec": 12.77,
+          "intervalMs": 109,
+          "sendFps": 9.17,
           "decodeFps": 0
         },
         {
-          "tSec": 12.38,
-          "intervalMs": 118,
-          "sendFps": 8.47,
+          "tSec": 13.1,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 13.43,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 13.75,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 14.06,
+          "intervalMs": 153,
+          "sendFps": 6.54,
           "decodeFps": 0
         },
         {
-          "tSec": 12.74,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 2.82
+          "tSec": 14.37,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
         },
         {
-          "tSec": 13.09,
-          "intervalMs": 118,
-          "sendFps": 8.47,
+          "tSec": 14.67,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
+        },
+        {
+          "tSec": 14.98,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 6.54
+        },
+        {
+          "tSec": 15.28,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
+        },
+        {
+          "tSec": 15.59,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
+        },
+        {
+          "tSec": 15.9,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 6.54
+        },
+        {
+          "tSec": 16.2,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.54
+        },
+        {
+          "tSec": 16.53,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 16.86,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.12
+        },
+        {
+          "tSec": 17.18,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 17.49,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
+        },
+        {
+          "tSec": 17.8,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 6.54
+        },
+        {
+          "tSec": 18.1,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.54
+        },
+        {
+          "tSec": 18.43,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.12
+        },
+        {
+          "tSec": 18.75,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 19.08,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.06
+        },
+        {
+          "tSec": 19.39,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
+        },
+        {
+          "tSec": 19.69,
+          "intervalMs": 153,
+          "sendFps": 6.54,
           "decodeFps": 0
         },
         {
-          "tSec": 13.45,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 2.82
+          "tSec": 20,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 3.27
         },
         {
-          "tSec": 13.78,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 3.03
+          "tSec": 20.31,
+          "intervalMs": 153,
+          "sendFps": 6.54,
+          "decodeFps": 6.54
         },
         {
-          "tSec": 14.11,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 3.03
+          "tSec": 20.61,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.54
         },
         {
-          "tSec": 14.44,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 0
+          "tSec": 20.94,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 9.17
         },
         {
-          "tSec": 14.77,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 6.06
+          "tSec": 21.27,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 6.12
         },
         {
-          "tSec": 15.1,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 3.03
+          "tSec": 21.59,
+          "intervalMs": 109,
+          "sendFps": 9.17,
+          "decodeFps": 9.17
         },
         {
-          "tSec": 15.43,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 0
+          "tSec": 21.92,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 9.17
         },
         {
-          "tSec": 15.76,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 0
+          "tSec": 22.23,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 12.82
         },
         {
-          "tSec": 16.09,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 0
+          "tSec": 22.54,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 9.62
         },
         {
-          "tSec": 16.42,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 6.06
+          "tSec": 22.86,
+          "intervalMs": 78,
+          "sendFps": 12.82,
+          "decodeFps": 12.82
         },
         {
-          "tSec": 16.75,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 3.03
+          "tSec": 23.17,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 12.82
         },
         {
-          "tSec": 17.08,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 3.03
+          "tSec": 23.45,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 17.41,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 3.03
+          "tSec": 23.73,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 17.87,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 0
+          "tSec": 24.01,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 18.33,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 2.16
+          "tSec": 24.29,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 18.79,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 2.16
+          "tSec": 24.57,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 10.71
         },
         {
-          "tSec": 19.25,
-          "intervalMs": 323,
-          "sendFps": 3.1,
-          "decodeFps": 2.16
+          "tSec": 24.85,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 19.58,
-          "intervalMs": 323,
-          "sendFps": 3.1,
-          "decodeFps": 3.1
+          "tSec": 25.13,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 19.9,
-          "intervalMs": 323,
-          "sendFps": 3.1,
-          "decodeFps": 0
+          "tSec": 25.41,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 20.22,
-          "intervalMs": 323,
-          "sendFps": 3.1,
-          "decodeFps": 0
+          "tSec": 25.69,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 25
         },
         {
-          "tSec": 20.55,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 3.1
+          "tSec": 25.97,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 21.01,
-          "intervalMs": 231,
-          "sendFps": 4.33,
-          "decodeFps": 4.33
+          "tSec": 26.25,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 10.71
         },
         {
-          "tSec": 21.47,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 4.33
+          "tSec": 26.53,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 25
         },
         {
-          "tSec": 21.8,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 6.06
+          "tSec": 26.81,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 22.13,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 6.06
+          "tSec": 27.09,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 22.48,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 8.47
+          "tSec": 27.37,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 14.29
         },
         {
-          "tSec": 22.84,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
+          "tSec": 27.65,
+          "intervalMs": 56,
+          "sendFps": 17.86,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 23.19,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
+          "tSec": 27.93,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 23.55,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 5.65
+          "tSec": 28.21,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 25
         },
         {
-          "tSec": 23.88,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 6.06
+          "tSec": 28.49,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 24.21,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 6.06
+          "tSec": 28.77,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
-          "tSec": 24.56,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
+          "tSec": 29.05,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 25
         },
         {
-          "tSec": 24.91,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
+          "tSec": 29.33,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 21.43
         },
         {
-          "tSec": 25.27,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 5.65
-        },
-        {
-          "tSec": 25.6,
-          "intervalMs": 165,
-          "sendFps": 6.06,
-          "decodeFps": 6.06
-        },
-        {
-          "tSec": 25.93,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 6.06
-        },
-        {
-          "tSec": 26.28,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 5.65
-        },
-        {
-          "tSec": 26.64,
-          "intervalMs": 118,
-          "sendFps": 8.47,
-          "decodeFps": 8.47
-        },
-        {
-          "tSec": 26.99,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 8.47
-        },
-        {
-          "tSec": 27.24,
-          "intervalMs": 84,
-          "sendFps": 11.9,
-          "decodeFps": 11.9
-        },
-        {
-          "tSec": 27.49,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 11.9
-        },
-        {
-          "tSec": 27.79,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
-        },
-        {
-          "tSec": 28.09,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
-        },
-        {
-          "tSec": 28.39,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
-        },
-        {
-          "tSec": 28.69,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
-        },
-        {
-          "tSec": 28.99,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
-        },
-        {
-          "tSec": 29.29,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 16.67
-        },
-        {
-          "tSec": 29.59,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 10
+          "tSec": 29.61,
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         },
         {
           "tSec": 29.89,
-          "intervalMs": 60,
-          "sendFps": 16.67,
-          "decodeFps": 13.33
+          "intervalMs": 40,
+          "sendFps": 25,
+          "decodeFps": 17.86
         }
       ]
     }
@@ -1629,122 +1695,278 @@
     "cryptoBench": [
       {
         "sizeKB": 10,
-        "pbkdf2AesInitMs": 87.9,
-        "frameGenAndHmacUs": 11,
-        "frameVerifyHmacUs": 4.5,
-        "base45DecodeUs": 0.6
+        "pbkdf2AesInitMs": 93.3,
+        "frameGenAndHmacUs": 14.4,
+        "frameVerifyHmacUs": 4.8,
+        "base45DecodeUs": 0.8
       },
       {
         "sizeKB": 100,
-        "pbkdf2AesInitMs": 83.4,
-        "frameGenAndHmacUs": 10.1,
-        "frameVerifyHmacUs": 6,
-        "base45DecodeUs": 1.1
+        "pbkdf2AesInitMs": 89.1,
+        "frameGenAndHmacUs": 12.2,
+        "frameVerifyHmacUs": 4.8,
+        "base45DecodeUs": 0.9
       },
       {
         "sizeKB": 500,
-        "pbkdf2AesInitMs": 91.5,
-        "frameGenAndHmacUs": 11.8,
-        "frameVerifyHmacUs": 4.7,
+        "pbkdf2AesInitMs": 90,
+        "frameGenAndHmacUs": 12.9,
+        "frameVerifyHmacUs": 4.8,
         "base45DecodeUs": 0.7
       },
       {
         "sizeKB": 1024,
-        "pbkdf2AesInitMs": 90.9,
-        "frameGenAndHmacUs": 10.3,
-        "frameVerifyHmacUs": 4.4,
-        "base45DecodeUs": 0.6
+        "pbkdf2AesInitMs": 101.8,
+        "frameGenAndHmacUs": 14.4,
+        "frameVerifyHmacUs": 4.7,
+        "base45DecodeUs": 0.7
       }
     ],
     "gaussBench": [
       {
         "K": 32,
-        "avgDecodeMs": 0.22
+        "avgDecodeMs": 0.48
       },
       {
         "K": 64,
-        "avgDecodeMs": 0.73
+        "avgDecodeMs": 0.92
       },
       {
         "K": 100,
-        "avgDecodeMs": 1.83
+        "avgDecodeMs": 2.99
       },
       {
         "K": 150,
-        "avgDecodeMs": 4.77
+        "avgDecodeMs": 5.38
       },
       {
         "K": 200,
-        "avgDecodeMs": 9.8
+        "avgDecodeMs": 10.62
       }
-    ]
+    ],
+    "qrEncodeBench": [
+      {
+        "label": "1x1 Mono (500B, M)",
+        "blockSize": 500,
+        "ecc": "M",
+        "gridCount": 1,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 9.31,
+        "maxEncodeFps": 107.4
+      },
+      {
+        "label": "1x1 Mono (650B, L)",
+        "blockSize": 650,
+        "ecc": "L",
+        "gridCount": 1,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 9.67,
+        "maxEncodeFps": 103.46
+      },
+      {
+        "label": "2x1 Mono (650B, L)",
+        "blockSize": 650,
+        "ecc": "L",
+        "gridCount": 2,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 17.81,
+        "maxEncodeFps": 56.14
+      },
+      {
+        "label": "2x2 Mono (650B, L)",
+        "blockSize": 650,
+        "ecc": "L",
+        "gridCount": 4,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 44.24,
+        "maxEncodeFps": 22.6
+      },
+      {
+        "label": "2x1 RGB (650B, L)",
+        "blockSize": 650,
+        "ecc": "L",
+        "gridCount": 6,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 89.81,
+        "maxEncodeFps": 11.13
+      },
+      {
+        "label": "2x2 RGB (650B, L)",
+        "blockSize": 650,
+        "ecc": "L",
+        "gridCount": 12,
+        "qrVersion": 18,
+        "modules": 89,
+        "batchEncodeMs": 111.83,
+        "maxEncodeFps": 8.94
+      }
+    ],
+    "encodingCompare": {
+      "frameBytes": 670,
+      "ecc": "L",
+      "base45": {
+        "chars": 1005,
+        "qrVersion": 18,
+        "modules": 89,
+        "bytesPer1000DataBits": 121.21
+      },
+      "base64": {
+        "chars": 896,
+        "qrVersion": 21,
+        "modules": 101,
+        "bytesPer1000DataBits": 93.75
+      },
+      "theoreticalGainPct": 29.3
+    }
   },
   "exp6": {
     "modes": [
       {
         "label": "1x1 Mono (500B, M, 10fps)",
         "sizeKB": 1024,
+        "rounds": 11,
+        "K": 2101,
+        "symbols": 2104,
+        "overhead": 1.001,
         "refreshes": 2286,
+        "targetFps": 10,
+        "effectiveFps": 10,
         "wallSec": 228.6,
-        "goodputKBps": 4.48
+        "goodputKBps": 4.48,
+        "verified": true
       },
       {
-        "label": "2x1 Mono (650B, L, 13.3fps)",
+        "label": "1x1 Mono (650B, L, 75ms)",
         "sizeKB": 1024,
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1625,
+        "overhead": 1.005,
+        "refreshes": 1764,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
+        "wallSec": 132.33,
+        "goodputKBps": 7.74,
+        "verified": true
+      },
+      {
+        "label": "2x1 Mono (650B, L, 75ms)",
+        "sizeKB": 1024,
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1625,
+        "overhead": 1.005,
         "refreshes": 884,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
         "wallSec": 66.32,
-        "goodputKBps": 15.44
+        "goodputKBps": 15.44,
+        "verified": true
       },
       {
-        "label": "2x2 Mono (900B, L, 15fps)",
+        "label": "2x2 Mono (650B, L, 75ms)",
         "sizeKB": 1024,
-        "refreshes": 329,
-        "wallSec": 21.93,
-        "goodputKBps": 46.69
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1621,
+        "overhead": 1.002,
+        "refreshes": 450,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
+        "wallSec": 33.76,
+        "goodputKBps": 30.33,
+        "verified": true
       },
       {
-        "label": "2x1 RGB  (650B, L, 13.3fps)",
+        "label": "2x1 RGB (650B, L, 75ms)",
         "sizeKB": 1024,
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1635,
+        "overhead": 1.011,
         "refreshes": 302,
-        "wallSec": 22.66,
-        "goodputKBps": 45.2
+        "targetFps": 13.33,
+        "effectiveFps": 11.13,
+        "wallSec": 27.13,
+        "goodputKBps": 37.74,
+        "verified": true
       },
       {
-        "label": "2x2 RGB  (750B, L, 14fps)",
+        "label": "2x2 RGB (650B, L, 75ms)",
         "sizeKB": 1024,
-        "refreshes": 138,
-        "wallSec": 9.86,
-        "goodputKBps": 103.88
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1642,
+        "overhead": 1.015,
+        "refreshes": 158,
+        "targetFps": 13.33,
+        "effectiveFps": 8.94,
+        "wallSec": 17.67,
+        "goodputKBps": 57.94,
+        "verified": true
       }
     ],
     "scaling2x1": [
       {
         "label": "0.25 MB",
         "sizeKB": 256,
+        "rounds": 3,
+        "K": 405,
+        "symbols": 405,
+        "overhead": 1,
         "refreshes": 224,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
         "wallSec": 16.8,
-        "goodputKBps": 15.23
+        "goodputKBps": 15.23,
+        "verified": true
       },
       {
         "label": "1 MB",
         "sizeKB": 1024,
+        "rounds": 11,
+        "K": 1617,
+        "symbols": 1625,
+        "overhead": 1.005,
         "refreshes": 884,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
         "wallSec": 66.32,
-        "goodputKBps": 15.44
+        "goodputKBps": 15.44,
+        "verified": true
       },
       {
         "label": "3 MB",
         "sizeKB": 3072,
+        "rounds": 32,
+        "K": 4864,
+        "symbols": 4892,
+        "overhead": 1.006,
         "refreshes": 2675,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
         "wallSec": 200.68,
-        "goodputKBps": 15.31
+        "goodputKBps": 15.31,
+        "verified": true
       },
       {
         "label": "5 MB",
         "sizeKB": 5120,
+        "rounds": 20,
+        "K": 8080,
+        "symbols": 8082,
+        "overhead": 1,
         "refreshes": 4390,
+        "targetFps": 13.33,
+        "effectiveFps": 13.33,
         "wallSec": 329.33,
-        "goodputKBps": 15.55
+        "goodputKBps": 15.55,
+        "verified": true
       }
     ]
   }
